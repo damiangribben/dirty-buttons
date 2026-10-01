@@ -66,6 +66,7 @@
   .brand { font-weight: 800; letter-spacing: .18em; font-size: 15px; }
   .model { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
   .col { display: flex; flex-direction: column; gap: 26px; align-items: center; }
+  .col-right { align-items: flex-start; }
   .cap { font-size: 10px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; margin-top: 8px; text-align: center; }
 
   .pads { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; }
@@ -99,6 +100,7 @@
   .rag-spot:hover { border-color: var(--line); }
   .rag-spot.empty { border-color: #4a474d; }
   .rag-spot.empty .rag { visibility: hidden; }
+  .dock-hint { display: none; font-size: 13px; color: var(--muted); }
   .dock-cap { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
   .rag { position: relative; display: block; border-radius: 48% 52% 42% 58% / 56% 44% 56% 44%;
     background: repeating-linear-gradient(35deg, #ffffff10 0 2px, transparent 2px 5px), radial-gradient(120% 90% at 35% 30%, #c4d2de, #8ea3b6 60%, #71879b);
@@ -113,10 +115,20 @@
   body.cloth .device, body.cloth .device * { cursor: none !important; }
   body.cloth .device { touch-action: none; }
 
+  /* Phones: one stacked column of controls; the cloth becomes a bar pinned to the top while you scroll the panel */
   @media (max-width: 640px) {
-    .wrap { padding-inline: 10px; }
-    .device { padding: 24px 16px 28px; gap: 32px; }
-    .stage { flex-direction: column; }
+    .stage { flex-direction: column; align-items: stretch; gap: 16px; }
+    .wrap { align-self: center; padding-inline: 10px; }
+    .device { flex-direction: column; align-items: center; padding: 24px 16px 28px; gap: 32px; }
+    .device header { align-self: stretch; }
+    .col-right, .display { align-items: center; }
+    .tip { left: 50%; transform: translate(-50%, 4px); }
+    .tip.show { transform: translate(-50%, 0); }
+    .dock { order: -1; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 60; flex-direction: row; justify-content: center; gap: 12px;
+      padding: 6px 14px; border: 1px solid var(--line); border-radius: 12px; background: #19181bf0; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 8px 20px #0008; }
+    .rag-spot { width: 68px; height: 50px; border-radius: 12px; }
+    .rag-spot .rag { width: 54px; height: 44px; }
+    .dock-hint { display: block; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -157,7 +169,7 @@
             <div class="cap">Filter</div>
           </div>
         </div>
-        <div class="col" style="align-items:flex-start">
+        <div class="col col-right">
           <div class="display">
             <div class="tip" id="tip">Name this kit. It shows on the display.</div>
             <div class="surface" id="label" aria-label="Kit name"></div>
@@ -174,6 +186,7 @@
     <div class="dock">
       <button type="button" class="rag-spot" id="ragSpot" aria-label="Pick up the cloth"><span class="rag"></span></button>
       <span class="dock-cap">Cloth</span>
+      <span class="dock-hint">Tap to pick up or put down</span>
     </div>
   </div>
 </div>
