@@ -40,7 +40,7 @@ A single self-contained HTML page, published as a private claude.ai Artifact and
 - [How should the cloth feel?](0013-cloth-feel.md) — lifts 8% of the dirt there per 10 px scrubbed, 20 px brush, smears (0.4) before it cleans; rag cursor that darkens as it picks up grime; never touches wear.
 - [Should the panel around the controls collect patina?](0014-panel-patina.md) — a halo just past each control's edge (11 px, mostly dirt); panel captions, brand and dial scale are shader print that wears; no whole-panel hand-resting grime.
 - [Where do reset and cloth live, and what else is on the page?](0015-page-chrome.md) — a simulator bar at the top (+50/+500/+3000, Reset with no confirmation); a rag to the right of the panel you pick up as the cloth; title plus one line.
-- [Assemble the shipping page](0016-assemble-page.md) — built as [patina-7.html](../patina-7.html), single dark look; works locally with no errors, persists, fits phone width.
+- [Assemble the shipping page](0016-assemble-page.md) — built as [index.html](../index.html), single dark look; works locally with no errors, persists, fits phone width.
 
 ## Not yet specified
 

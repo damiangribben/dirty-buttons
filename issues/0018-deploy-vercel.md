@@ -14,7 +14,7 @@ Host the shipping page on Vercel as a static site, alongside the Artifact.
 
 ## Setup (done)
 
-- `scripts/build-site.sh` generates [site/index.html](../site/index.html) from [patina-7.html](../patina-7.html). It wraps the page in a full HTML document (doctype, `lang`, charset and viewport meta tags) and adds a meta description, Open Graph title and description, a theme colour and an inline SVG knob favicon. **patina-7.html stays the only source: edit it, then re-run the script.**
+- `scripts/build-site.sh` generates [site/index.html](../site/index.html) from [index.html](../index.html). It wraps the page in a full HTML document (doctype, `lang`, charset and viewport meta tags) and adds a meta description, Open Graph title and description, a theme colour and an inline SVG knob favicon. **index.html stays the only source: edit it, then re-run the script.**
 - [site/vercel.json](../site/vercel.json): clean URLs plus `nosniff` and referrer-policy headers. No framework and no build command — Vercel serves `site/` as-is.
 - Checked locally from `site/`: standards mode, no console errors, patina survives a reload, no horizontal scroll at 400 px.
 

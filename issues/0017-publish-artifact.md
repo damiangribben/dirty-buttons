@@ -14,4 +14,6 @@ Publish the page from [Assemble the shipping page](0016-assemble-page.md) as a p
 
 ## Assets
 
-- Live Artifact (private): https://claude.ai/artifact/KX7XZXFEwSVzRZbi4QkQAY — published from [patina-7.html](../patina-7.html), version 1.
+- Live Artifact (private): https://claude.ai/artifact/KX7XZXFEwSVzRZbi4QkQAY — published from [index.html](../index.html), version 1.
+
+The source file has been renamed from patina-7.html to index.html. To republish to this same link, pass the URL above as `url`; publishing the new path without it would create a separate Artifact.

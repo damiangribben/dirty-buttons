@@ -1,10 +1,10 @@
 #!/bin/sh
-# Builds site/index.html for static hosting (Vercel) from patina-7.html.
-# patina-7.html is written for the claude.ai Artifact publisher, which adds the document skeleton itself;
+# Builds site/index.html (full document, for Vercel) from the root index.html (the Artifact source).
+# index.html is written for the claude.ai Artifact publisher, which adds the document skeleton itself;
 # this wraps it in a full document: everything up to </style> goes in <head>, the rest in <body>.
 set -e
 cd "$(dirname "$0")/.."
-SRC=patina-7.html
+SRC=index.html
 OUT=site/index.html
 mkdir -p site
 

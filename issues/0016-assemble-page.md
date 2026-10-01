@@ -23,7 +23,7 @@ Follow the `artifact-design` contract (title, CDN rules, phone width), and handl
 
 ## Resolution
 
-Built: [patina-7.html](../patina-7.html) — one self-contained page, written for the Artifact skeleton (no doctype, html, head or body tags of its own; it carries its own `<title>` and `<style>`).
+Built: [index.html](../index.html) — one self-contained page, written for the Artifact skeleton (no doctype, html, head or body tags of its own; it carries its own `<title>` and `<style>`).
 
 - **Design:** one dark look on purpose — the skeuomorphic device in a dim room. Fonts come from Google Fonts: Jost for the legends and title (a Futura-like face, so the shader's print masks look the same on every OS), VT323 for the LCD name field, and IBM Plex Mono for the simulator. Print masks are drawn after the fonts load.
 - **Every decision is in:**
