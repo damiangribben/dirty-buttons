@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A skeuomorphic sampler panel whose pads, switches and dial get dirty and worn the more you touch them. Wipe it with the cloth or reset it.">
+<meta name="theme-color" content="#121113">
+<meta property="og:title" content="Patina·7">
+<meta property="og:description" content="A skeuomorphic sampler panel whose pads, switches and dial get dirty and worn the more you touch them. Wipe it with the cloth or reset it.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232a2a2d' stroke='%230a0a0a' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%236c6c70'/%3E%3Crect x='15' y='4' width='2' height='8' rx='1' fill='%23e9e2cf'/%3E%3C/svg%3E">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Patina·7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=VT323&display=swap">
+<style>
+  /* Layout: a dim desk — intro and the patina simulator strip on top, the device below with its cloth lying to the right. Single dark look by choice. */
+  :root {
+    --room: #121113;
+    --room-glow: #1d1b1e;
+    --ink: #e9e2cf;
+    --muted: #8d877b;
+    --line: #2e2c30;
+    --accent: #e2733a;
+    --display: "Jost", "Futura", "Avenir Next", "Century Gothic", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --lcd: "VT323", ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: radial-gradient(120% 80% at 50% 30%, var(--room-glow), var(--room) 70%) fixed, var(--room); color: var(--ink); font: 15px/1.5 var(--display); }
+  .page { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: flex; flex-direction: column; gap: 28px; }
+
+  /* ---------- top: intro + simulator ---------- */
+  .top { display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-end; justify-content: space-between; }
+  .intro { min-width: 0; max-width: 34rem; }
+  .intro h1 { margin: 0 0 4px; font-weight: 600; font-size: 22px; letter-spacing: .14em; text-transform: uppercase; text-wrap: balance; }
+  .intro p { margin: 0; color: var(--muted); }
+  .sim { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #19181b; font-family: var(--mono); font-size: 13px; }
+  .sim-label { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); padding-inline: 4px 6px; }
+  .sim button { font: inherit; color: var(--ink); background: #252428; border: 1px solid #39373c; border-radius: 6px; padding: 6px 11px; cursor: pointer; box-shadow: 0 1px 0 #ffffff0d inset, 0 2px 0 #0a0a0b; }
+  .sim button:hover { background: #2d2c31; }
+  .sim button:active { transform: translateY(1px); box-shadow: 0 1px 0 #0a0a0b; }
+  .sim button:focus-visible, .rag-spot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sim .count { color: var(--muted); padding-inline: 8px; font-variant-numeric: tabular-nums; border-left: 1px solid var(--line); margin-left: 4px; }
+  .sim .count b { color: var(--ink); font-weight: 500; }
+  .sim #reset { color: var(--accent); border-color: #5a3420; }
+
+  /* ---------- stage ---------- */
+  .stage { display: flex; gap: 32px; align-items: center; justify-content: center; flex-wrap: wrap; }
+
+  .surface { position: relative; user-select: none; -webkit-user-select: none; touch-action: none; cursor: pointer; }
+  .surface > canvas.patina, #panel > canvas.patina { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; border-radius: inherit; z-index: 0; }
+  .surface > :not(canvas), #panel > :not(canvas) { position: relative; z-index: 1; }
+
+  .wrap { flex: 0 1 auto; min-width: 0; max-width: 100%; padding-inline: 22px; border-radius: 22px; background: linear-gradient(90deg, #4a2a16, #7a4a28 12%, #5c351c 40%, #80502c 70%, #4a2a16); box-shadow: 0 24px 60px #000b, inset 0 1px 0 #ffffff22; }
+  .device { position: relative; max-width: 884px; display: flex; gap: 40px; padding: 28px 40px 36px; border-radius: 16px; flex-wrap: wrap; justify-content: center; color: var(--ink);
+    background: repeating-linear-gradient(90deg, #ffffff05 0 1px, transparent 1px 3px), linear-gradient(180deg, #34343a, #26262a);
+    box-shadow: inset 0 1px 0 #ffffff1c, inset 0 -2px 0 #0008, 0 0 0 1px #0009; }
+  .device::before, .device::after { content: ""; position: absolute; top: 12px; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #bbb, #555); box-shadow: 0 1px 1px #000a; z-index: 1; }
+  .device::before { left: 12px; } .device::after { right: 12px; }
+  .device header { flex-basis: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: -8px; }
+  /* panel print is drawn by the shader so it can wear; the DOM text stays for layout and screen readers */
+  .brand, .model, .cap { color: transparent; }
+  .brand { font-weight: 800; letter-spacing: .18em; font-size: 15px; }
+  .model { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
+  .col { display: flex; flex-direction: column; gap: 26px; align-items: center; }
+  .cap { font-size: 10px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; margin-top: 8px; text-align: center; }
+
+  .pads { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; }
+  .pad { width: 72px; height: 72px; border-radius: 8px; background: radial-gradient(120% 120% at 50% 25%, #6a6964, #4d4c48); box-shadow: inset 0 1px 0 #ffffff24, inset 0 -3px 2px #0005, 0 3px 0 #141414, 0 5px 10px #0008; }
+  .pad:active { transform: translateY(2px); box-shadow: inset 0 1px 0 #ffffff1a, inset 0 -1px 1px #0005, 0 1px 0 #141414, 0 2px 4px #0008; }
+  #button { width: 140px; height: 60px; border-radius: 10px; background: linear-gradient(180deg, #e2733a, #c45823); box-shadow: inset 0 1px 0 #ffffff40, inset 0 -3px 2px #0004, 0 3px 0 #6a2a0c, 0 6px 12px #0009; }
+  #button:active { transform: translateY(2px); box-shadow: inset 0 1px 0 #ffffff30, 0 1px 0 #6a2a0c, 0 2px 4px #0009; }
+  .row { display: flex; gap: 28px; align-items: flex-start; }
+  #rocker { width: 50px; height: 80px; border-radius: 6px; background: linear-gradient(180deg, #3b3b3d, #1c1c1e 48%, #111 52%, #262628); box-shadow: inset 0 1px 0 #ffffff22, 0 0 0 3px #0c0c0c, 0 4px 8px #000a; }
+  #rocker.on { background: linear-gradient(180deg, #161618, #262628 48%, #3a3a3c 52%, #222224); }
+  #slide { width: 88px; height: 40px; border-radius: 6px; background: linear-gradient(180deg, #0c0c0d, #1d1d20); box-shadow: inset 0 2px 4px #000c, 0 1px 0 #ffffff1a; }
+  #slide-thumb { position: absolute !important; top: 3px; left: 3px; width: 40px; height: 34px; border-radius: 4px; transition: transform .12s; background: linear-gradient(180deg, #ebe4d2, #c9c0aa); box-shadow: inset 0 1px 0 #fff8, inset 0 -2px 0 #0003, 0 2px 4px #000a; }
+  #slide.on #slide-thumb { transform: translateX(42px); }
+  #slider { width: 264px; height: 46px; border-radius: 6px; background: linear-gradient(180deg, #2b2b2f, #232327); }
+  #slider::before { content: ""; position: absolute; left: 14px; right: 14px; top: 20px; height: 6px; border-radius: 3px; background: #050505; box-shadow: inset 0 1px 2px #000, 0 1px 0 #ffffff1a; z-index: 1; }
+  #slider-thumb { position: absolute !important; top: 4px; width: 26px; height: 38px; border-radius: 4px; transition: left .06s; z-index: 2 !important; background: repeating-linear-gradient(180deg, #d9d9d9 0 2px, #9a9a9a 2px 4px); box-shadow: 0 3px 6px #000c, inset 0 0 0 1px #0005; }
+  .dial { position: relative; width: 150px; height: 150px; display: grid; place-items: center; }
+  #knob { width: 92px; height: 92px; border-radius: 50%; cursor: ns-resize;
+    background: radial-gradient(circle at 50% 50%, #6c6c70 0 34%, #3a3a3d 35% 37%, transparent 38%), repeating-conic-gradient(#1a1a1c 0 4deg, #2e2e31 4deg 8deg);
+    box-shadow: 0 6px 14px #000c, inset 0 1px 0 #ffffff2a, 0 0 0 2px #0a0a0a; }
+  .display { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; position: relative; }
+  #label { width: 92px; height: 22px; border-radius: 4px; background: #45454a; box-shadow: inset 0 1px 0 #ffffff18, 0 2px 0 #111; }
+  #field { width: 220px; height: 40px; cursor: text; border-radius: 6px; background: linear-gradient(180deg, #8d9a6a, #a8b583); color: #1f2614; box-shadow: inset 0 3px 6px #0007, 0 0 0 4px #111, 0 1px 0 4px #ffffff14; }
+  #field input { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border: 0; outline: none; padding: 0 12px; font: 24px/1 var(--lcd); letter-spacing: .04em; color: inherit; z-index: 1; }
+  .tip { position: absolute; left: 0; top: -46px; padding: 8px 10px; border-radius: 8px; font-size: 13px; white-space: nowrap; z-index: 10 !important; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; background: var(--ink); color: #222; box-shadow: 0 6px 16px #000a; }
+  .tip.show { opacity: 1; transform: none; }
+
+  /* ---------- cloth ---------- */
+  .dock { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .rag-spot { width: 112px; height: 96px; display: grid; place-items: center; border-radius: 18px; border: 1px dashed transparent; background: none; cursor: pointer; padding: 0; transition: border-color .15s; }
+  .rag-spot:hover { border-color: var(--line); }
+  .rag-spot.empty { border-color: #4a474d; }
+  .rag-spot.empty .rag { visibility: hidden; }
+  .dock-cap { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  .rag { position: relative; display: block; border-radius: 48% 52% 42% 58% / 56% 44% 56% 44%;
+    background: repeating-linear-gradient(35deg, #ffffff10 0 2px, transparent 2px 5px), radial-gradient(120% 90% at 35% 30%, #c4d2de, #8ea3b6 60%, #71879b);
+    box-shadow: inset -4px -6px 10px #0003, inset 3px 3px 6px #fff6, 0 6px 14px #0007; }
+  .rag::before { content: ""; position: absolute; inset: 18% 10% 40% 22%; border-radius: 50%; border-top: 2px solid #ffffff40; transform: rotate(-20deg); }
+  .rag::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(70% 60% at 50% 60%, #5e4c34, #3e3020); opacity: var(--soil, 0); mix-blend-mode: multiply; }
+  .rag-spot .rag { width: 84px; height: 70px; transform: rotate(-12deg); }
+  #cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 100; display: none; }
+  #cursor .rag { position: absolute; width: 52px; height: 44px; transform: translate(-50%, -50%) rotate(-12deg); transition: transform .08s; }
+  #cursor.down .rag { transform: translate(-50%, -50%) rotate(-12deg) scale(.92); }
+  body.cloth #cursor { display: block; }
+  body.cloth .device, body.cloth .device * { cursor: none !important; }
+  body.cloth .device { touch-action: none; }
+
+  @media (max-width: 640px) {
+    .wrap { padding-inline: 10px; }
+    .device { padding: 24px 16px 28px; gap: 32px; }
+    .stage { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="top">
+    <div class="intro">
+      <h1>Patina·7</h1>
+      <p>Every touch leaves a mark. Dirt builds up fast and wear comes slowly. Pick up the cloth to wipe the dirt away. Your patina is saved in this browser.</p>
+    </div>
+    <div class="sim" role="group" aria-label="Patina simulator">
+      <span class="sim-label">Simulate use</span>
+      <button type="button" id="sim-50" data-sim="50">+50</button>
+      <button type="button" id="sim-500" data-sim="500">+500</button>
+      <button type="button" id="sim-3000" data-sim="3000">+3000</button>
+      <span class="count"><b id="count">0</b> touches</span>
+      <button type="button" id="reset">Reset</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="wrap">
+      <div class="device" id="panel">
+        <header><span class="brand">PATINA·7</span><span class="model">Sample station</span></header>
+        <div class="col">
+          <div class="pads" id="pads"></div>
+          <div class="cap">Pads</div>
+        </div>
+        <div class="col">
+          <div>
+            <div class="dial" id="dial"><div class="surface" id="knob" aria-label="Tone"></div></div>
+            <div class="cap">Tone</div>
+          </div>
+          <div>
+            <div class="surface" id="slider" aria-label="Filter"><div class="surface" id="slider-thumb"></div></div>
+            <div class="cap">Filter</div>
+          </div>
+        </div>
+        <div class="col" style="align-items:flex-start">
+          <div class="display">
+            <div class="tip" id="tip">Name this kit. It shows on the display.</div>
+            <div class="surface" id="label" aria-label="Kit name"></div>
+            <div class="surface" id="field"><input id="input" value="DUSTY KIT 01" spellcheck="false" aria-label="Kit name"></div>
+          </div>
+          <div><div class="surface" id="button" aria-label="Play"></div></div>
+          <div class="row">
+            <div><div class="surface" id="rocker" aria-label="Power"></div><div class="cap">Power</div></div>
+            <div><div class="surface" id="slide" aria-label="Hold"><div class="surface" id="slide-thumb"></div></div><div class="cap">Hold</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock">
+      <button type="button" class="rag-spot" id="ragSpot" aria-label="Pick up the cloth"><span class="rag"></span></button>
+      <span class="dock-cap">Cloth</span>
+    </div>
+  </div>
+</div>
+<div id="cursor"><div class="rag"></div></div>
+
+<script>
+(() => {
+  // ---------- tuning (decided on the map) ----------
+  const R = { dirtRate: 0.025, dirtCeiling: 0.85, wearRate: 0.025 / 40, radius: 0.22 };
+  const CLOTH = { lift: 0.08, brush: 20, smear: 0.4 };
+  const HALO = { r: 11, over: 9, dirt: 0.5, dirtDial: 0.6, wear: 0.3 };
+  const MAT = {
+    pad:    { print: "#ede6d2", dirt: "#9a8a6c", sheen: [1, 1, 1, .22] },
+    button: { print: "#2a1408", dirt: "#4a2e1a", sheen: [1, .9, .8, .25] },
+    rocker: { print: "#ede6d2", dirt: "#9a8a6c", sheen: [1, 1, 1, .2] },
+    track:  { print: "#ede6d2", dirt: "#8a7a5c", sheen: [1, 1, 1, .15] },
+    thumb:  { print: "#3a3020", dirt: "#5e4c34", sheen: [1, 1, 1, .2] },
+    knob:   { print: "#f2ecda", dirt: "#9a8a6c", sheen: [1, 1, 1, .25] },
+    label:  { print: "#ede6d2", dirt: "#9a8a6c", sheen: [1, 1, 1, .2] },
+    field:  { print: "#1f2614", dirt: "#3c3a26", sheen: [1, 1, .9, .25] },
+    panel:  { print: "#e9e2cf", dirt: "#9a8a6c", sheen: [1, 1, 1, .1] },
+  };
+  const KEY = "patina7";
+  const store = {
+    load() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch { return null; } },
+    save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} },
+  };
+
+  // ---------- print masks (white on transparent; the material sets the colour) ----------
+  const font = (w, px) => `${w} ${px}px Jost, Futura, "Avenir Next", sans-serif`;
+  const PAD_NAMES = ["KICK", "SNARE", "HAT", "CLAP", "TOM", "RIM", "PERC", "CRASH", "FX"];
+  const centreText = (c, t, x, y) => { c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(t, x, y); };
+  // Dial scale lives in panel print: 11 ticks over -135..135°, radii in px of the 150px dial box.
+  const SCALE = { r0: 54, r1: 59, r1Big: 62, num: 71 };
+  const tickAngle = i => (-135 + 27 * i - 90) * Math.PI / 180;
+  const PRINT = {
+    pad(c, w, h, s) {
+      c.font = font(800, h * 0.34); centreText(c, String(s.index + 1).padStart(2, "0"), w / 2, h * 0.44);
+      c.font = font(600, h * 0.13); c.letterSpacing = `${h * 0.02}px`; centreText(c, PAD_NAMES[s.index], w / 2, h * 0.74);
+    },
+    button(c, w, h) {
+      c.font = font(800, h * 0.36); c.letterSpacing = `${h * 0.05}px`; centreText(c, "PLAY", w / 2 + h * 0.15, h / 2 + 1);
+      c.beginPath(); c.moveTo(w * 0.13, h * 0.36); c.lineTo(w * 0.13 + h * 0.24, h * 0.5); c.lineTo(w * 0.13, h * 0.64); c.fill();
+    },
+    rocker(c, w, h) {
+      c.fillRect(w / 2 - w * 0.04, h * 0.14, w * 0.08, h * 0.2);
+      c.lineWidth = w * 0.08; c.beginPath(); c.arc(w / 2, h * 0.76, h * 0.09, 0, Math.PI * 2); c.stroke();
+    },
+    slide(c, w, h) { c.font = font(600, h * 0.26); centreText(c, "OFF", w * 0.74, h / 2); centreText(c, "ON", w * 0.26, h / 2); },
+    slideThumb(c, w, h) { for (let i = -1; i <= 1; i++) c.fillRect(w / 2 + i * w * 0.14 - w * 0.025, h * 0.3, w * 0.05, h * 0.4); },
+    slider(c, w, h) {
+      const pad = 14 * w / 264;
+      for (let i = 0; i < 9; i++) {
+        const x = pad + (w - 2 * pad) * i / 8, big = i % 4 === 0;
+        c.fillRect(x - w * 0.003, 0, w * 0.006, h * (big ? 0.26 : 0.16));
+        c.fillRect(x - w * 0.003, h * (big ? 0.74 : 0.84), w * 0.006, h);
+      }
+    },
+    sliderThumb(c, w, h) { c.fillRect(w * 0.15, h / 2 - h * 0.03, w * 0.7, h * 0.06); },
+    knob(c, w, h) { c.fillRect(w / 2 - w * 0.025, h * 0.06, w * 0.05, h * 0.3); },
+    label(c, w, h) { c.font = font(600, h * 0.5); c.letterSpacing = `${h * 0.08}px`; centreText(c, "KIT NAME", w / 2, h / 2 + 1); },
+    field() {},
+    panel(c, w, h, s) {
+      const pr = s.el.getBoundingClientRect(), k = w / pr.width;
+      for (const el of s.el.querySelectorAll(".brand, .model, .cap")) {
+        const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+        c.font = `${cs.fontWeight} ${parseFloat(cs.fontSize) * k}px ${cs.fontFamily}`;
+        c.letterSpacing = `${(parseFloat(cs.letterSpacing) || 0) * k}px`;
+        c.textBaseline = "middle";
+        const t = el.textContent.toUpperCase(), y = (r.top + r.height / 2 - pr.top) * k;
+        if (el.classList.contains("cap")) { c.textAlign = "center"; c.fillText(t, (r.left + r.width / 2 - pr.left) * k, y); }
+        else if (el.classList.contains("model")) { c.textAlign = "right"; c.fillText(t, (r.right - pr.left) * k, y); }
+        else { c.textAlign = "left"; c.fillText(t, (r.left - pr.left) * k, y); }
+      }
+      const d = document.getElementById("dial").getBoundingClientRect();
+      const cx = (d.left + d.width / 2 - pr.left) * k, cy = (d.top + d.height / 2 - pr.top) * k;
+      c.lineCap = "round"; c.letterSpacing = "0px"; c.font = font(600, 10 * k);
+      for (let i = 0; i <= 10; i++) {
+        const a = tickAngle(i), big = i % 5 === 0, x = Math.cos(a), y = Math.sin(a), r1 = big ? SCALE.r1Big : SCALE.r1;
+        c.lineWidth = (big ? 2 : 1.3) * k;
+        c.beginPath(); c.moveTo(cx + x * SCALE.r0 * k, cy + y * SCALE.r0 * k); c.lineTo(cx + x * r1 * k, cy + y * r1 * k); c.stroke();
+        if (big) centreText(c, String(i), cx + x * SCALE.num * k, cy + y * SCALE.num * k);
+      }
+    },
+  };
+
+  // ---------- surfaces ----------
+  const padsEl = document.getElementById("pads");
+  for (let i = 0; i < 9; i++) { const d = document.createElement("div"); d.className = "surface pad"; d.id = "pad-" + i; d.setAttribute("aria-label", `Pad ${i + 1}`); padsEl.appendChild(d); }
+
+  const saved = store.load();
+  const surfaces = [];
+  function surface(id, kind, mat, mw, mh, extra = {}) {
+    const el = document.getElementById(id), canvas = document.createElement("canvas");
+    canvas.className = "patina"; el.prepend(canvas);
+    const s = { id, el, canvas, ctx: canvas.getContext("2d"), kind, mat, mw, mh, map: new Float32Array(mw * mh * 2), ...extra };
+    surfaces.push(s); return s;
+  }
+  // The panel map keeps ~28K cells but follows the panel's shape (wide on desktop, tall on phones).
+  const PANEL_CELLS = 256 * 112;
+  const [pw0, ph0] = saved?.state?.panelDims || [256, 112];
+  const panelS = surface("panel", "panel", "panel", pw0, ph0);
+  const pads = [...Array(9)].map((_, i) => surface("pad-" + i, "pad", "pad", 64, 64, { index: i }));
+  const S = {
+    button: surface("button", "button", "button", 64, 32),
+    rocker: surface("rocker", "rocker", "rocker", 32, 48),
+    slide: surface("slide", "slide", "track", 64, 32),
+    slideThumb: surface("slide-thumb", "slideThumb", "thumb", 32, 32),
+    slider: surface("slider", "slider", "track", 128, 24),
+    sliderThumb: surface("slider-thumb", "sliderThumb", "thumb", 24, 32),
+    knob: surface("knob", "knob", "knob", 64, 64),
+    label: surface("label", "label", "label", 64, 16),
+    field: surface("field", "field", "field", 128, 24),
+  };
+  const byId = Object.fromEntries(surfaces.map(s => [s.id, s]));
+
+  // ---------- state ----------
+  const state = { rocker: false, slide: false, stop: 4, angle: -30, touches: 0, soil: 0, panelDims: [pw0, ph0] };
+  if (saved) {
+    Object.assign(state, saved.state || {});
+    for (const s of surfaces) {
+      const m = saved.maps?.[s.id]; if (!m) continue;
+      try {
+        const bin = atob(m), n = bin.length / 2;
+        if (n === s.map.length) for (let i = 0; i < n; i++) s.map[i] = (bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)) / 65535;
+      } catch {}
+    }
+  }
+
+  // ---------- GL: one hidden WebGL2 context renders every surface ----------
+  const gl = document.createElement("canvas").getContext("webgl2", { premultipliedAlpha: true, preserveDrawingBuffer: true });
+  const VS = `#version 300 es
+  in vec2 p; out vec2 uv;
+  void main() { uv = vec2((p.x + 1.0) * 0.5, (1.0 - p.y) * 0.5); gl_Position = vec4(p, 0.0, 1.0); }`;
+  const FS = `#version 300 es
+  precision highp float;
+  in vec2 uv; out vec4 o;
+  uniform sampler2D uMap, uPrint;
+  uniform vec2 uSize; uniform vec3 uPrintColor, uDirtColor; uniform vec4 uSheen; uniform float uSeed;
+  float h(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float vn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h(i), h(i + vec2(1,0)), u.x), mix(h(i + vec2(0,1)), h(i + vec2(1,1)), u.x), u.y); }
+  float fbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vn(p); p *= 2.03; a *= 0.5; } return s; }
+  void main() {
+    vec2 px = uv * uSize + uSeed * 37.0;
+    vec2 m = texture(uMap, uv).rg; float dirt = m.r, wear = m.g;
+    float printA = texture(uPrint, uv).a;
+    float erodeN = fbm(px / 3.0) * 0.7 + vn(px * 0.9) * 0.3;
+    float keep = smoothstep(wear * 1.15 - 0.04, wear * 1.15 + 0.04, erodeN * 0.92 + 0.06);
+    float pa = printA * keep * (1.0 - wear * 0.35) * 0.95;
+    vec4 col = vec4(uPrintColor * pa, pa);
+    float sheen = wear * uSheen.a * (0.6 + 0.4 * fbm(px / 6.0));
+    col = vec4(uSheen.rgb * sheen, sheen) + col * (1.0 - sheen);
+    float blot = fbm(px / 9.0), grain = vn(px * 1.3);
+    float da = clamp(smoothstep(0.0, 1.0, dirt * (0.55 + 0.9 * blot)) * (0.78 + 0.22 * grain), 0.0, 0.92);
+    vec3 dc = uDirtColor * (0.8 + 0.4 * grain) * (1.0 - 0.25 * smoothstep(0.5, 1.0, dirt));
+    o = vec4(dc * da, da) + col * (1.0 - da);
+  }`;
+  let U = {};
+  function initGL() {
+    const sh = (t, src) => { const x = gl.createShader(t); gl.shaderSource(x, src); gl.compileShader(x); return x; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    const ploc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(ploc); gl.vertexAttribPointer(ploc, 2, gl.FLOAT, false, 0, 0);
+    U = {}; for (const n of ["uMap", "uPrint", "uSize", "uPrintColor", "uDirtColor", "uSheen", "uSeed"]) U[n] = gl.getUniformLocation(prog, n);
+    gl.uniform1i(U.uMap, 0); gl.uniform1i(U.uPrint, 1);
+    for (const s of surfaces) s.mapTex = s.printTex = null;
+  }
+  const newTex = () => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    return t; };
+  const rgb = hex => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+
+  function layout() {
+    if (!gl || gl.isContextLost()) return;
+    const dpr = devicePixelRatio || 1; let mw = 1, mh = 1;
+    fitPanelMap();
+    surfaces.forEach((s, i) => {
+      s.cssW = s.el.offsetWidth; s.cssH = s.el.offsetHeight;
+      s.pw = Math.max(1, Math.round(s.cssW * dpr)); s.ph = Math.max(1, Math.round(s.cssH * dpr));
+      s.canvas.width = s.pw; s.canvas.height = s.ph; mw = Math.max(mw, s.pw); mh = Math.max(mh, s.ph); s.seed = i + 1;
+      s.mapTex ??= newTex(); gl.bindTexture(gl.TEXTURE_2D, s.mapTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, s.mw, s.mh, 0, gl.RG, gl.FLOAT, s.map);
+      const pc = document.createElement("canvas"); pc.width = s.pw; pc.height = s.ph;
+      const c = pc.getContext("2d"); c.fillStyle = c.strokeStyle = "#fff"; PRINT[s.kind](c, s.pw, s.ph, s);
+      s.printTex ??= newTex(); gl.bindTexture(gl.TEXTURE_2D, s.printTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pc);
+    });
+    gl.canvas.width = mw; gl.canvas.height = mh;
+    surfaces.forEach(render);
+  }
+  function fitPanelMap() {
+    const aspect = panelS.el.offsetWidth / Math.max(1, panelS.el.offsetHeight);
+    const nw = Math.max(16, Math.round(Math.sqrt(PANEL_CELLS * aspect))), nh = Math.max(16, Math.round(PANEL_CELLS / nw));
+    const ratio = aspect / (panelS.mw / panelS.mh);
+    if (ratio > 0.8 && ratio < 1.25) return;
+    // The controls move when the layout reflows, so old panel smudges would land in the wrong places: start the panel clean.
+    const map = new Float32Array(nw * nh * 2);
+    Object.assign(panelS, { map, mw: nw, mh: nh }); state.panelDims = [nw, nh]; scheduleSave();
+  }
+
+  function render(s) {
+    if (!gl || gl.isContextLost() || !s.mapTex) return;
+    const m = MAT[s.mat];
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.mapTex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.mw, s.mh, gl.RG, gl.FLOAT, s.map);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, s.printTex);
+    gl.uniform2f(U.uSize, s.cssW, s.cssH); gl.uniform1f(U.uSeed, s.seed);
+    gl.uniform3f(U.uPrintColor, ...rgb(m.print)); gl.uniform3f(U.uDirtColor, ...rgb(m.dirt)); gl.uniform4f(U.uSheen, ...m.sheen);
+    gl.viewport(0, 0, s.pw, s.ph); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    s.ctx.clearRect(0, 0, s.pw, s.ph);
+    s.ctx.drawImage(gl.canvas, 0, gl.canvas.height - s.ph, s.pw, s.ph, 0, 0, s.pw, s.ph);
+  }
+
+  // ---------- accumulation ----------
+  // o.r: radius in CSS px; o.d / o.w: dirt and wear multipliers (1 = one touch).
+  // Dirt eases toward its ceiling; wear is linear to 1. A primary touch also counts and smudges the panel.
+  function splat(s, ux, uy, o = {}) {
+    const r = o.r ?? R.radius * Math.min(s.cssW, s.cssH), dm = o.d ?? 1, wm = o.w ?? 1;
+    const x0 = Math.max(0, Math.floor((ux * s.cssW - 2 * r) / s.cssW * s.mw)), x1 = Math.min(s.mw - 1, Math.ceil((ux * s.cssW + 2 * r) / s.cssW * s.mw));
+    const y0 = Math.max(0, Math.floor((uy * s.cssH - 2 * r) / s.cssH * s.mh)), y1 = Math.min(s.mh - 1, Math.ceil((uy * s.cssH + 2 * r) / s.cssH * s.mh));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const dx = ((x + 0.5) / s.mw - ux) * s.cssW, dy = ((y + 0.5) / s.mh - uy) * s.cssH;
+      const d2 = (dx * dx + dy * dy) / (r * r); if (d2 > 4) continue;
+      const f = Math.exp(-d2 * 1.6), i = (y * s.mw + x) * 2;
+      s.map[i] = Math.min(R.dirtCeiling, s.map[i] + R.dirtRate * f * dm * (1 - s.map[i] / R.dirtCeiling));
+      s.map[i + 1] = Math.min(1, s.map[i + 1] + R.wearRate * f * wm);
+    }
+    mark(s);
+    if (!o.noPanel && s !== panelS) { state.touches++; halo(s, ux, uy); }
+  }
+  function travel(s, u0, u1, uy, o) {
+    const len = Math.abs(u1 - u0) * s.cssW, n = Math.max(1, Math.ceil(len / (o.r * 0.6)));
+    for (let k = 1; k <= n; k++) splat(s, u0 + (u1 - u0) * k / n, uy, { r: o.r, d: o.d, w: o.w, noPanel: true });
+  }
+
+  // ---------- panel: halo just past the edge of each touched control ----------
+  const HOST = { "slide-thumb": "slide", "slider-thumb": "slider" };
+  const gj = () => { let a = 0; for (let i = 0; i < 6; i++) a += Math.random(); return (a - 3) / 1.22; };
+  function splatPanel(px, py, r, d, w) {
+    const pr = panelS.el.getBoundingClientRect();
+    splat(panelS, (px - pr.left) / pr.width, (py - pr.top) / pr.height, { r, d, w, noPanel: true });
+  }
+  function halo(s, ux, uy) {
+    const r = s.el.getBoundingClientRect();
+    let tx, ty;
+    if (s === S.knob) {
+      const a = state.angle * Math.PI / 180, lx = (ux - 0.5) * s.cssW, ly = (uy - 0.5) * s.cssH;
+      tx = r.left + r.width / 2 + lx * Math.cos(a) - ly * Math.sin(a); ty = r.top + r.height / 2 + lx * Math.sin(a) + ly * Math.cos(a);
+    } else { tx = r.left + ux * r.width; ty = r.top + uy * r.height; }
+    const hr = (HOST[s.id] ? byId[HOST[s.id]] : s).el.getBoundingClientRect();
+    const cx = hr.left + hr.width / 2, cy = hr.top + hr.height / 2, hw = hr.width / 2, hh = hr.height / 2;
+    let dx = tx - cx, dy = ty - cy; if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) dy = 1;
+    const len = Math.hypot(dx, dy);
+    const edge = s === S.knob ? hw / len : Math.min(hw / Math.max(Math.abs(dx), 1e-6), hh / Math.max(Math.abs(dy), 1e-6));
+    splatPanel(cx + dx * edge + dx / len * HALO.over + gj() * 3, cy + dy * edge + dy / len * HALO.over + gj() * 3,
+      HALO.r, s === S.knob ? HALO.dirtDial : HALO.dirt, HALO.wear);
+  }
+
+  const dirty = new Set(); let raf = 0;
+  function mark(s) {
+    dirty.add(s);
+    if (!raf) raf = requestAnimationFrame(() => {
+      raf = 0; dirty.forEach(render); dirty.clear();
+      countEl.textContent = state.touches.toLocaleString();
+      scheduleSave();
+    });
+  }
+  const countEl = document.getElementById("count");
+
+  // ---------- controls ----------
+  const uvOf = (s, e) => { const r = s.el.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
+  const inside = (s, e) => { const r = s.el.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
+
+  pads.forEach(s => s.el.addEventListener("pointerdown", e => splat(s, ...uvOf(s, e))));
+  S.button.el.addEventListener("pointerdown", e => splat(S.button, ...uvOf(S.button, e)));
+
+  const applyRocker = () => S.rocker.el.classList.toggle("on", state.rocker);
+  S.rocker.el.addEventListener("pointerdown", e => { state.rocker = !state.rocker; applyRocker(); splat(S.rocker, ...uvOf(S.rocker, e)); });
+
+  // slide toggle: the thumb gets dirt where pressed; the track wears along the thumb's path
+  const SLIDE_L = 23 / 88, SLIDE_R = 65 / 88;
+  const applySlide = () => S.slide.el.classList.toggle("on", state.slide);
+  function flipSlide(thumbUV) {
+    const from = state.slide ? SLIDE_R : SLIDE_L; state.slide = !state.slide; applySlide();
+    travel(S.slide, from, state.slide ? SLIDE_R : SLIDE_L, 0.5, { r: 16, d: 0.25, w: 0.6 });
+    splat(S.slideThumb, ...(thumbUV || [0.5, 0.5]));
+  }
+  S.slide.el.addEventListener("pointerdown", e => flipSlide(inside(S.slideThumb, e) ? uvOf(S.slideThumb, e) : null));
+
+  // slider: nine click stops; the track wears where the thumb travels
+  const SL_PAD = 14 / 264, stopU = i => SL_PAD + (1 - 2 * SL_PAD) * i / 8;
+  const applySlider = () => S.sliderThumb.el.style.left = `${stopU(state.stop) * 264 - 13}px`;
+  function moveSlider(to) {
+    to = Math.max(0, Math.min(8, to)); if (to === state.stop) return;
+    travel(S.slider, stopU(state.stop), stopU(to), 0.5, { r: 18, d: 0.15, w: 0.5 });
+    state.stop = to; applySlider();
+  }
+  let sliding = false;
+  const stopAt = e => { const r = S.slider.el.getBoundingClientRect(); return Math.round(((e.clientX - r.left) / r.width - SL_PAD) / (1 - 2 * SL_PAD) * 8); };
+  S.slider.el.addEventListener("pointerdown", e => {
+    sliding = true; S.slider.el.setPointerCapture(e.pointerId);
+    splat(S.sliderThumb, ...(inside(S.sliderThumb, e) ? uvOf(S.sliderThumb, e) : [0.5, 0.5]));
+    moveSlider(stopAt(e));
+  });
+  S.slider.el.addEventListener("pointermove", e => sliding && moveSlider(stopAt(e)));
+  S.slider.el.addEventListener("pointerup", () => sliding = false);
+
+  // dial: a grab leaves grime at the grip (stored in knob space); turning rubs the index mark;
+  // the scale tick where it's left wears
+  const applyKnob = () => S.knob.el.style.transform = `rotate(${state.angle}deg)`;
+  function knobUVAt(x, y) {
+    const r = S.knob.el.getBoundingClientRect(), a = -state.angle * Math.PI / 180, dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+    return [0.5 + (dx * Math.cos(a) - dy * Math.sin(a)) / S.knob.cssW, 0.5 + (dx * Math.sin(a) + dy * Math.cos(a)) / S.knob.cssH];
+  }
+  function turn(delta) {
+    const next = Math.max(-135, Math.min(135, state.angle + delta)), d = Math.abs(next - state.angle);
+    if (!d) return;
+    state.angle = next; applyKnob();
+    const amt = d / 30, r = S.knob.cssW * 0.05;
+    for (const t of [0.1, 0.2, 0.3]) splat(S.knob, 0.5, t, { r, d: amt * 0.2, w: amt * 2, noPanel: true });
+  }
+  function settleDial() {
+    const i = Math.round((state.angle + 135) / 27), a = tickAngle(i), d = document.getElementById("dial").getBoundingClientRect();
+    const rm = (SCALE.r0 + SCALE.r1) / 2;
+    splatPanel(d.left + d.width / 2 + Math.cos(a) * rm, d.top + d.height / 2 + Math.sin(a) * rm, 4, 0.2, 1);
+  }
+  let turning = null;
+  S.knob.el.addEventListener("pointerdown", e => { splat(S.knob, ...knobUVAt(e.clientX, e.clientY)); turning = { y: e.clientY }; S.knob.el.setPointerCapture(e.pointerId); });
+  S.knob.el.addEventListener("pointermove", e => { if (!turning) return; turn((turning.y - e.clientY) * 1.5); turning.y = e.clientY; });
+  S.knob.el.addEventListener("pointerup", () => { if (turning) { settleDial(); turning = null; } });
+
+  // label + input
+  const tip = document.getElementById("tip"), input = document.getElementById("input");
+  S.label.el.addEventListener("pointerdown", e => { tip.classList.toggle("show"); splat(S.label, ...uvOf(S.label, e)); });
+  input.addEventListener("pointerdown", e => { if (document.activeElement !== input) splat(S.field, ...uvOf(S.field, e)); });
+  input.addEventListener("input", () => { state.name = input.value; scheduleSave(); });
+  if (state.name != null) input.value = state.name;
+
+  // ---------- patina simulator ----------
+  const g = gj, cl = v => Math.min(1, Math.max(0, v));
+  const pick = ws => { let t = Math.random() * ws.reduce((a, b) => a + b); for (let i = 0; i < ws.length; i++) if ((t -= ws[i]) < 0) return i; return ws.length - 1; };
+  const PAD_W = [6, 5, 4, 2, 2, 1, 1, 1, 1];
+  const FAV = [(3 / 10) * 270 - 135, (7 / 10) * 270 - 135];
+  const ACTIONS = [
+    [40, () => { const s = pads[pick(PAD_W)]; splat(s, cl(.5 + g() * .14), cl(.5 + g() * .14)); }],
+    [14, () => splat(S.button, cl(.5 + g() * .1), cl(.55 + g() * .14))],
+    [12, () => { splat(S.sliderThumb, cl(.5 + g() * .15), cl(.5 + g() * .15)); moveSlider(Math.round(4 + g() * 1.6)); }],
+    [10, () => {
+      // the hand comes in from about 10 o'clock, turns to a favourite setting and lets go
+      const phi = (-150 + g() * 20) * Math.PI / 180 - state.angle * Math.PI / 180;
+      splat(S.knob, .5 + .45 * Math.cos(phi), .5 + .45 * Math.sin(phi));
+      let left = FAV[Math.random() < 0.6 ? 0 : 1] + g() * 15 - state.angle;
+      while (Math.abs(left) > 0.5) { const step = Math.sign(left) * Math.min(Math.abs(left), 60); turn(step); left -= step; }
+      settleDial();
+    }],
+    [7, () => { state.rocker = !state.rocker; applyRocker(); splat(S.rocker, cl(.5 + g() * .12), state.rocker ? cl(.25 + g() * .1) : cl(.75 + g() * .1)); }],
+    [7, () => flipSlide([cl(.5 + g() * .15), cl(.5 + g() * .15)])],
+    [5, () => splat(S.field, Math.random() < .6 ? cl(.12 + g() * .06) : cl(.85 + g() * .05), cl(.5 + g() * .15))],
+    [4, () => splat(S.label, cl(.5 + g() * .15), cl(.5 + g() * .2))],
+  ];
+  const WEIGHTS = ACTIONS.map(a => a[0]);
+  document.querySelectorAll("[data-sim]").forEach(b => b.addEventListener("click", () => {
+    for (let i = 0; i < +b.dataset.sim; i++) ACTIONS[pick(WEIGHTS)][1]();
+  }));
+  document.getElementById("reset").addEventListener("click", () => {
+    for (const s of surfaces) { s.map.fill(0); mark(s); }
+    state.touches = 0; state.soil = 0; applySoil();
+  });
+
+  // ---------- cloth ----------
+  // Lift 8% of the dirt there per 10 px scrubbed; smear drags dirt along the stroke first. Wear is never touched.
+  const cursor = document.getElementById("cursor"), ragSpot = document.getElementById("ragSpot"), device = panelS.el;
+  let holding = false, scrub = null;
+  function applySoil() { document.querySelectorAll(".rag").forEach(r => r.style.setProperty("--soil", state.soil.toFixed(3))); }
+  function setHolding(on, e) {
+    holding = on; document.body.classList.toggle("cloth", on);
+    ragSpot.classList.toggle("empty", on);
+    ragSpot.setAttribute("aria-label", on ? "Put the cloth down" : "Pick up the cloth");
+    if (on) {
+      document.activeElement?.blur?.(); tip.classList.remove("show");
+      const r = ragSpot.getBoundingClientRect();
+      moveCursor(e?.clientX || r.left + r.width / 2, e?.clientY || r.top + r.height / 2);
+    }
+    if (!on) { scrub = null; cursor.classList.remove("down"); scheduleSave(); }
+  }
+  ragSpot.addEventListener("click", e => setHolding(!holding, e));
+  addEventListener("keydown", e => { if (e.key === "Escape" && holding) setHolding(false); });
+  const moveCursor = (x, y) => cursor.style.transform = `translate(${x}px, ${y}px)`;
+
+  function localPt(s, x, y) {
+    const r = s.el.getBoundingClientRect();
+    if (s !== S.knob) return [x - r.left, y - r.top];
+    const a = -state.angle * Math.PI / 180, dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+    return [s.cssW / 2 + dx * Math.cos(a) - dy * Math.sin(a), s.cssH / 2 + dx * Math.sin(a) + dy * Math.cos(a)];
+  }
+  function localVec(s, vx, vy) {
+    if (s !== S.knob) return [vx, vy];
+    const a = -state.angle * Math.PI / 180;
+    return [vx * Math.cos(a) - vy * Math.sin(a), vx * Math.sin(a) + vy * Math.cos(a)];
+  }
+  function scrubSurface(s, px, py, mvx, mvy, dist) {
+    const rb = CLOTH.brush, k = dist / 10;
+    if (px < -rb || py < -rb || px > s.cssW + rb || py > s.cssH + rb) return;
+    const cw = s.cssW / s.mw, ch = s.cssH / s.mh;
+    const x0 = Math.max(0, Math.floor((px - rb) / cw)), x1 = Math.min(s.mw - 1, Math.ceil((px + rb) / cw));
+    const y0 = Math.max(0, Math.floor((py - rb) / ch)), y1 = Math.min(s.mh - 1, Math.ceil((py + rb) / ch));
+    if (x0 > x1 || y0 > y1) return;
+    const old = s.map.slice(), sx = mvx / cw, sy = mvy / ch;
+    let lifted = 0;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const dx = (x + 0.5) * cw - px, dy = (y + 0.5) * ch - py, d2 = (dx * dx + dy * dy) / (rb * rb);
+      if (d2 > 1) continue;
+      const f = Math.exp(-d2 * 2), i = (y * s.mw + x) * 2;
+      const bx = Math.min(s.mw - 1, Math.max(0, Math.round(x - sx))), by = Math.min(s.mh - 1, Math.max(0, Math.round(y - sy)));
+      let d = old[i]; d += (old[(by * s.mw + bx) * 2] - d) * CLOTH.smear * f;
+      const take = d * Math.min(1, CLOTH.lift * k * f);
+      s.map[i] = d - take; lifted += take;
+    }
+    if (lifted) { state.soil = Math.min(0.85, state.soil + lifted * 0.0012); mark(s); }
+  }
+  function scrubTo(x, y) {
+    const dx = x - scrub.x, dy = y - scrub.y, dist = Math.hypot(dx, dy);
+    if (dist < 0.5) return;
+    const n = Math.ceil(dist / Math.max(2, CLOTH.brush * 0.3));
+    for (let k = 1; k <= n; k++) {
+      const px = scrub.x + dx * k / n, py = scrub.y + dy * k / n;
+      for (const s of surfaces) scrubSurface(s, ...localPt(s, px, py), ...localVec(s, dx / n, dy / n), dist / n);
+    }
+    scrub.x = x; scrub.y = y; applySoil();
+  }
+  device.addEventListener("pointerdown", e => {
+    if (!holding) return;
+    e.stopPropagation(); e.preventDefault();
+    scrub = { x: e.clientX, y: e.clientY }; cursor.classList.add("down");
+    device.setPointerCapture(e.pointerId);
+  }, true);
+  addEventListener("pointermove", e => { if (!holding) return; moveCursor(e.clientX, e.clientY); if (scrub) scrubTo(e.clientX, e.clientY); });
+  addEventListener("pointerup", () => { if (scrub) { scrub = null; cursor.classList.remove("down"); scheduleSave(); } });
+
+  // ---------- persistence: 16-bit maps under one key ----------
+  let saveTimer = 0;
+  function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 500); }
+  function save() {
+    const maps = {};
+    for (const s of surfaces) {
+      const u16 = new Uint16Array(s.map.length); for (let i = 0; i < u16.length; i++) u16[i] = Math.round(s.map[i] * 65535);
+      const b = new Uint8Array(u16.buffer); let bin = ""; for (let i = 0; i < b.length; i += 8192) bin += String.fromCharCode(...b.subarray(i, i + 8192));
+      maps[s.id] = btoa(bin);
+    }
+    store.save({ state, maps });
+  }
+  addEventListener("pagehide", save);
+
+  // ---------- boot ----------
+  applyRocker(); applySlide(); applySlider(); applyKnob(); applySoil();
+  countEl.textContent = state.touches.toLocaleString();
+  if (!gl) { document.querySelector(".intro p").textContent = "This browser has no WebGL2, so patina can't be drawn here."; return; }
+  initGL();
+  gl.canvas.addEventListener("webglcontextlost", e => e.preventDefault());
+  gl.canvas.addEventListener("webglcontextrestored", () => { initGL(); layout(); });
+  let resizeTimer = 0;
+  addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(layout, 120); });
+  const fontsReady = document.fonts
+    ? Promise.all(["800 20px Jost", "600 20px Jost", "500 20px Jost", "24px VT323"].map(f => document.fonts.load(f))).catch(() => {})
+    : Promise.resolve();
+  layout();
+  fontsReady.then(layout);
+})();
+</script>
+</body>
+</html>

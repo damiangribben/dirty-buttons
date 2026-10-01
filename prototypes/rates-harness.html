@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patina Rates Harness</title>
+<style>
+  :root {
+    --bg: #1b1c1e; --panel: #2a2b2e; --ink: #e8e4da; --muted: #9a968c; --line: #3a3b3f; --accent: #e0a040;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 ui-sans-serif, system-ui, sans-serif; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  h1 { font-size: 15px; margin: 0 0 4px; letter-spacing: .02em; }
+  p.sub { margin: 0 0 20px; color: var(--muted); }
+
+  .deck {
+    background: linear-gradient(180deg, #4a4b4f, #38393c); border-radius: 14px; padding: 40px 32px;
+    box-shadow: inset 0 1px 0 #ffffff22, inset 0 -2px 0 #00000055, 0 10px 30px #0008;
+    display: flex; gap: 48px; align-items: center; justify-content: center; flex-wrap: wrap;
+  }
+  .unit { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .unit .count { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+
+  .surface { position: relative; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .surface canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; border-radius: inherit; }
+  .surface:active { transform: translateY(1px) scale(.99); }
+
+  #button {
+    width: 140px; height: 64px; border-radius: 10px;
+    background: linear-gradient(180deg, #2e2f33, #232427);
+    box-shadow: inset 0 1px 0 #ffffff1a, inset 0 -3px 0 #0006, 0 3px 0 #111, 0 6px 12px #0007;
+  }
+  #pad {
+    width: 110px; height: 110px; border-radius: 12px;
+    background: radial-gradient(120% 120% at 50% 30%, #6d6c68, #55544f);
+    box-shadow: inset 0 1px 0 #ffffff26, inset 0 -3px 0 #0005, 0 3px 0 #1a1a1a, 0 6px 12px #0007;
+  }
+
+  aside { background: var(--panel); border-radius: 12px; padding: 16px; align-self: start; }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 16px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-bottom: 10px; }
+  .ctl label { color: var(--ink); }
+  .ctl output { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .ctl input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  button.b { background: #3a3b40; color: var(--ink); border: 1px solid #4a4b50; border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button.b:hover { background: #45464b; }
+  button.b.on { background: var(--accent); color: #1b1c1e; border-color: var(--accent); }
+  .stats { font-variant-numeric: tabular-nums; color: var(--muted); display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; }
+  .stats b { color: var(--ink); font-weight: 500; text-align: right; }
+  pre#out { background: #1b1c1e; border-radius: 6px; padding: 8px; white-space: pre-wrap; font-size: 11px; color: var(--muted); margin: 8px 0 0; min-height: 0; }
+  select, input[type=color] { background: #3a3b40; color: var(--ink); border: 1px solid #4a4b50; border-radius: 6px; font: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>Patina rates harness</h1>
+    <p class="sub">Click the controls to touch them, or simulate touches. Tune until dirt shows well before wear, and the maximum grime looks right.</p>
+    <div class="deck">
+      <div class="unit"><div class="surface" id="button"></div><div class="count" id="count-button">0 touches</div></div>
+      <div class="unit"><div class="surface" id="pad"></div><div class="count" id="count-pad">0 touches</div></div>
+    </div>
+  </section>
+
+  <aside>
+    <h2>Rates (per touch, at splat centre)</h2>
+    <div class="ctl"><label for="dirtRate">Dirt rate</label><output id="dirtRate-o"></output><input id="dirtRate" type="range" min="0" max="1" step="0.001"></div>
+    <div class="ctl"><label for="wearRatio">Wear is dirt ÷</label><output id="wearRatio-o"></output><input id="wearRatio" type="range" min="2" max="200" step="1"></div>
+    <h2>Ceilings (dirt eases toward its ceiling; wear is linear to its cap)</h2>
+    <div class="ctl"><label for="dirtCap">Dirt ceiling</label><output id="dirtCap-o"></output><input id="dirtCap" type="range" min="0.1" max="1" step="0.01"></div>
+    <div class="ctl"><label for="wearCap">Wear cap</label><output id="wearCap-o"></output><input id="wearCap" type="range" min="0.1" max="1" step="0.01"></div>
+    <h2>Touch shape</h2>
+    <div class="ctl"><label for="radius">Splat radius</label><output id="radius-o"></output><input id="radius" type="range" min="0.05" max="0.5" step="0.01"></div>
+    <div class="ctl"><label for="scatter">Finger scatter (sim)</label><output id="scatter-o"></output><input id="scatter" type="range" min="0.02" max="0.4" step="0.01"></div>
+    <div class="ctl"><label for="dirtColor">Dirt colour</label><input id="dirtColor" type="color"></div>
+
+    <h2>Simulate</h2>
+    <div class="row">
+      <select id="target"><option value="both">Both</option><option value="button">Button</option><option value="pad">Pad</option></select>
+      <button class="b" data-sim="10">+10</button><button class="b" data-sim="100">+100</button><button class="b" data-sim="1000">+1000</button>
+    </div>
+    <div class="row">
+      <button class="b" id="auto">Auto-tap</button>
+      <select id="autoSpeed"><option value="4">4/s</option><option value="20" selected>20/s</option><option value="100">100/s</option></select>
+      <button class="b" id="reset">Reset</button>
+    </div>
+
+    <h2>Readout</h2>
+    <div class="stats">
+      <span>Touches to half / 90% of dirt ceiling</span><b id="s-dcap"></b>
+      <span>Touches to visible wear (≈0.12)</span><b id="s-wvis"></b>
+      <span>Touches to wear cap</span><b id="s-wcap"></b>
+      <span>Peak dirt · button / pad</span><b id="s-pd"></b>
+      <span>Peak wear · button / pad</span><b id="s-pw"></b>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="b" id="copy">Copy settings</button></div>
+    <pre id="out" hidden></pre>
+  </aside>
+</main>
+
+<script>
+(() => {
+  // ---------- settings ----------
+  const DEFAULTS = { dirtRate: 0.025, wearRatio: 40, dirtCap: 0.85, wearCap: 1, radius: 0.22, scatter: 0.12, dirtColor: "#6b5a44" };
+  const KEY = "worn-ui:rates-harness";
+  const store = {
+    load() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch { return null; } },
+    save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} },
+    clear() { try { localStorage.removeItem(KEY); } catch {} },
+  };
+  const saved = store.load();
+  const S = Object.assign({}, DEFAULTS, saved?.settings);
+
+  // dirt rate slider is log-scaled: 0..1 -> 0.002..0.2
+  const dirtFromSlider = t => 0.002 * Math.pow(100, t);
+  const sliderFromDirt = d => Math.log(d / 0.002) / Math.log(100);
+  const wearRate = () => S.dirtRate / S.wearRatio;
+
+  // ---------- surfaces ----------
+  const surfaces = [
+    { id: "button", mw: 64, mh: 32, print: drawButtonPrint },
+    { id: "pad",    mw: 64, mh: 64, print: drawPadPrint },
+  ].map(s => {
+    s.el = document.getElementById(s.id);
+    s.canvas = document.createElement("canvas");
+    s.el.appendChild(s.canvas);
+    s.ctx = s.canvas.getContext("2d");
+    s.map = new Float32Array(s.mw * s.mh * 2);
+    s.touches = 0;
+    return s;
+  });
+  const byId = Object.fromEntries(surfaces.map(s => [s.id, s]));
+
+  function drawButtonPrint(c, w, h) {
+    c.fillStyle = "#fff";
+    c.font = `700 ${h * 0.34}px ui-sans-serif, system-ui, sans-serif`;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.letterSpacing = `${h * 0.04}px`;
+    c.fillText("PLAY", w / 2, h / 2 + h * 0.02);
+    c.fillRect(w * 0.12, h * 0.44, h * 0.08, h * 0.08);
+  }
+  function drawPadPrint(c, w, h) {
+    c.fillStyle = "#fff";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = `700 ${h * 0.36}px ui-sans-serif, system-ui, sans-serif`;
+    c.fillText("05", w / 2, h * 0.46);
+    c.font = `600 ${h * 0.11}px ui-sans-serif, system-ui, sans-serif`;
+    c.letterSpacing = `${h * 0.02}px`;
+    c.fillText("KICK", w / 2, h * 0.76);
+    c.fillRect(w * 0.08, h * 0.08, w * 0.84, h * 0.02);
+  }
+
+  // restore maps
+  if (saved?.maps) for (const s of surfaces) {
+    const m = saved.maps[s.id];
+    if (!m) continue;
+    try {
+      const bin = atob(m.data), u16 = new Uint16Array(bin.length / 2);
+      for (let i = 0; i < u16.length; i++) u16[i] = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+      if (u16.length === s.map.length) for (let i = 0; i < u16.length; i++) s.map[i] = u16[i] / 65535;
+      s.touches = m.touches || 0;
+    } catch {}
+  }
+
+  // ---------- GL ----------
+  const gl = document.createElement("canvas").getContext("webgl2", { premultipliedAlpha: true, preserveDrawingBuffer: true, alpha: true });
+  if (!gl) { document.querySelector(".sub").textContent = "WebGL2 unavailable."; return; }
+
+  const VS = `#version 300 es
+  in vec2 p; out vec2 uv;
+  void main() { uv = vec2((p.x + 1.0) * 0.5, (1.0 - p.y) * 0.5); gl_Position = vec4(p, 0.0, 1.0); }`;
+
+  const FS = `#version 300 es
+  precision highp float;
+  in vec2 uv; out vec4 o;
+  uniform sampler2D uMap;    // r = dirt, g = wear
+  uniform sampler2D uPrint;  // a = legend mask
+  uniform vec2 uSize;        // surface size in CSS px
+  uniform vec3 uPrintColor;
+  uniform vec3 uDirtColor;
+  uniform float uSeed;
+
+  float h(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float vn(vec2 p) {
+    vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h(i), h(i + vec2(1,0)), u.x), mix(h(i + vec2(0,1)), h(i + vec2(1,1)), u.x), u.y);
+  }
+  float fbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vn(p); p *= 2.03; a *= 0.5; } return s; }
+
+  void main() {
+    vec2 px = uv * uSize + uSeed * 37.0;
+    vec2 m = texture(uMap, uv).rg;
+    float dirt = m.r, wear = m.g;
+
+    // print, eroded by wear: pits and fades rather than dimming evenly
+    float printA = texture(uPrint, uv).a;
+    float erodeN = fbm(px / 3.0) * 0.7 + vn(px * 0.9) * 0.3;
+    float keep = smoothstep(wear * 1.15 - 0.04, wear * 1.15 + 0.04, erodeN * 0.92 + 0.06);
+    float pa = printA * keep * (1.0 - wear * 0.35) * 0.92;
+    vec4 col = vec4(uPrintColor * pa, pa);
+
+    // lost finish: worn areas go polished/matte
+    float sheen = wear * 0.22 * (0.6 + 0.4 * fbm(px / 6.0));
+    col = vec4(vec3(1.0) * sheen, sheen) + col * (1.0 - sheen);
+
+    // dirt: blotchy, grainy, darker at the core
+    float blot = fbm(px / 9.0);
+    float grain = vn(px * 1.3);
+    float da = smoothstep(0.0, 1.0, dirt * (0.55 + 0.9 * blot)) * (0.78 + 0.22 * grain);
+    da = clamp(da, 0.0, 0.92);
+    vec3 dc = uDirtColor * (0.8 + 0.4 * grain) * (1.0 - 0.25 * smoothstep(0.5, 1.0, dirt));
+    col = vec4(dc * da, da) + col * (1.0 - da);
+
+    o = col;
+  }`;
+
+  function compile(type, src) {
+    const sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    return sh;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "p");
+  gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  const U = n => gl.getUniformLocation(prog, n);
+  const u = { map: U("uMap"), print: U("uPrint"), size: U("uSize"), printColor: U("uPrintColor"), dirtColor: U("uDirtColor"), seed: U("uSeed") };
+  gl.uniform1i(u.map, 0); gl.uniform1i(u.print, 1);
+  gl.uniform3f(u.printColor, 0.93, 0.91, 0.84);
+
+  function tex(filter) {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+  }
+
+  function layout() {
+    const dpr = window.devicePixelRatio || 1;
+    let maxW = 1, maxH = 1;
+    surfaces.forEach((s, i) => {
+      s.cssW = s.el.clientWidth; s.cssH = s.el.clientHeight;
+      s.pw = Math.round(s.cssW * dpr); s.ph = Math.round(s.cssH * dpr);
+      s.canvas.width = s.pw; s.canvas.height = s.ph;
+      maxW = Math.max(maxW, s.pw); maxH = Math.max(maxH, s.ph);
+      s.seed = i + 1;
+
+      s.mapTex ??= tex(gl.LINEAR);
+      gl.bindTexture(gl.TEXTURE_2D, s.mapTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, s.mw, s.mh, 0, gl.RG, gl.FLOAT, s.map);
+
+      const pc = document.createElement("canvas"); pc.width = s.pw; pc.height = s.ph;
+      s.print(pc.getContext("2d"), s.pw, s.ph);
+      s.printTex ??= tex(gl.LINEAR);
+      gl.bindTexture(gl.TEXTURE_2D, s.printTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pc);
+    });
+    gl.canvas.width = maxW; gl.canvas.height = maxH;
+    surfaces.forEach(render);
+  }
+
+  const dirtRGB = () => { const n = parseInt(S.dirtColor.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+
+  function render(s) {
+    gl.bindTexture(gl.TEXTURE_2D, s.mapTex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.mw, s.mh, gl.RG, gl.FLOAT, s.map);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.mapTex);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, s.printTex);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform2f(u.size, s.cssW, s.cssH);
+    gl.uniform3f(u.dirtColor, ...dirtRGB());
+    gl.uniform1f(u.seed, s.seed);
+    gl.viewport(0, 0, s.pw, s.ph);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    s.ctx.clearRect(0, 0, s.pw, s.ph);
+    s.ctx.drawImage(gl.canvas, 0, gl.canvas.height - s.ph, s.pw, s.ph, 0, 0, s.pw, s.ph);
+  }
+
+  // ---------- accumulation ----------
+  // Soft radial splat; radius is a fraction of the surface's short side, in CSS px.
+  function splat(s, ux, uy) {
+    const r = S.radius * Math.min(s.cssW, s.cssH);
+    const dr = S.dirtRate, wr = wearRate();
+    for (let y = 0; y < s.mh; y++) for (let x = 0; x < s.mw; x++) {
+      const dx = ((x + 0.5) / s.mw - ux) * s.cssW, dy = ((y + 0.5) / s.mh - uy) * s.cssH;
+      const d2 = (dx * dx + dy * dy) / (r * r);
+      if (d2 > 4) continue;
+      const f = Math.exp(-d2 * 1.6);
+      const i = (y * s.mw + x) * 2;
+      s.map[i]     = Math.min(S.dirtCap, s.map[i]     + dr * f * (1 - s.map[i] / S.dirtCap));
+      s.map[i + 1] = Math.min(S.wearCap, s.map[i + 1] + wr * f);
+    }
+    s.touches++;
+  }
+
+  const gauss = () => { let a = 0; for (let i = 0; i < 6; i++) a += Math.random(); return (a - 3) / 1.22; };
+  function simTouch(s) {
+    // fingers cluster around the centre, slightly low on the button
+    const cy = s.id === "button" ? 0.55 : 0.5;
+    const x = Math.min(1, Math.max(0, 0.5 + gauss() * S.scatter));
+    const y = Math.min(1, Math.max(0, cy + gauss() * S.scatter));
+    splat(s, x, y);
+  }
+
+  const dirty = new Set();
+  let raf = 0;
+  function touched(s) {
+    dirty.add(s);
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; dirty.forEach(render); dirty.clear(); stats(); scheduleSave(); });
+  }
+
+  for (const s of surfaces) {
+    s.el.addEventListener("pointerdown", e => {
+      const r = s.el.getBoundingClientRect();
+      splat(s, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+      touched(s);
+    });
+  }
+
+  const targets = () => S.target === "both" || !S.target ? surfaces : [byId[S.target]];
+  document.querySelectorAll("[data-sim]").forEach(b => b.addEventListener("click", () => {
+    const n = +b.dataset.sim;
+    for (const s of targets()) { for (let i = 0; i < n; i++) simTouch(s); touched(s); }
+  }));
+
+  let autoTimer = 0;
+  const autoBtn = document.getElementById("auto");
+  function setAuto(on) {
+    clearInterval(autoTimer); autoTimer = 0;
+    autoBtn.classList.toggle("on", on);
+    if (on) autoTimer = setInterval(() => { for (const s of targets()) { simTouch(s); touched(s); } }, 1000 / +document.getElementById("autoSpeed").value);
+  }
+  autoBtn.addEventListener("click", () => setAuto(!autoTimer));
+  document.getElementById("autoSpeed").addEventListener("change", () => autoTimer && setAuto(true));
+  document.getElementById("target").addEventListener("change", e => { S.target = e.target.value; });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    for (const s of surfaces) { s.map.fill(0); s.touches = 0; touched(s); }
+  });
+
+  // ---------- controls ----------
+  const fmt = {
+    dirtRate: v => v.toFixed(4), wearRatio: v => `${v}  (${wearRate().toFixed(5)})`,
+    dirtCap: v => v.toFixed(2), wearCap: v => v.toFixed(2), radius: v => v.toFixed(2), scatter: v => v.toFixed(2),
+  };
+  function bind(id) {
+    const el = document.getElementById(id), out = document.getElementById(id + "-o");
+    if (id === "dirtRate") el.value = sliderFromDirt(S.dirtRate); else el.value = S[id];
+    const show = () => { if (out) out.textContent = fmt[id] ? fmt[id](S[id]) : ""; };
+    show();
+    el.addEventListener("input", () => {
+      S[id] = id === "dirtRate" ? dirtFromSlider(+el.value) : id === "dirtColor" ? el.value : +el.value;
+      show(); document.getElementById("wearRatio-o").textContent = fmt.wearRatio(S.wearRatio);
+      if (id === "dirtCap" || id === "wearCap") clampMaps();
+      if (id === "dirtColor" || id === "dirtCap" || id === "wearCap") surfaces.forEach(touched);
+      stats(); scheduleSave();
+    });
+  }
+  ["dirtRate", "wearRatio", "dirtCap", "wearCap", "radius", "scatter", "dirtColor"].forEach(bind);
+
+  function clampMaps() {
+    for (const s of surfaces) for (let i = 0; i < s.map.length; i += 2) {
+      s.map[i] = Math.min(s.map[i], S.dirtCap); s.map[i + 1] = Math.min(s.map[i + 1], S.wearCap);
+    }
+  }
+
+  function peak(s, ch) { let m = 0; for (let i = ch; i < s.map.length; i += 2) m = Math.max(m, s.map[i]); return m; }
+  function stats() {
+    const wr = wearRate();
+    const n = v => Number.isFinite(v) ? Math.ceil(v).toLocaleString() : "—";
+    document.getElementById("s-dcap").textContent = `${n(Math.LN2 * S.dirtCap / S.dirtRate)} / ${n(Math.LN10 * S.dirtCap / S.dirtRate)}`;
+    document.getElementById("s-wvis").textContent = n(0.12 / wr);
+    document.getElementById("s-wcap").textContent = n(S.wearCap / wr);
+    document.getElementById("s-pd").textContent = `${peak(byId.button, 0).toFixed(2)} / ${peak(byId.pad, 0).toFixed(2)}`;
+    document.getElementById("s-pw").textContent = `${peak(byId.button, 1).toFixed(3)} / ${peak(byId.pad, 1).toFixed(3)}`;
+    for (const s of surfaces) document.getElementById("count-" + s.id).textContent = `${s.touches.toLocaleString()} touches`;
+  }
+
+  // ---------- persistence ----------
+  let saveTimer = 0;
+  function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 500); }
+  function save() {
+    const maps = {};
+    for (const s of surfaces) {
+      const u16 = new Uint16Array(s.map.length);
+      for (let i = 0; i < u16.length; i++) u16[i] = Math.round(s.map[i] * 65535);
+      const bytes = new Uint8Array(u16.buffer);
+      let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      maps[s.id] = { data: btoa(bin), touches: s.touches };
+    }
+    const { target, ...settings } = S;
+    store.save({ settings, maps });
+  }
+  addEventListener("pagehide", save);
+
+  document.getElementById("copy").addEventListener("click", () => {
+    const { target, ...settings } = S;
+    const txt = JSON.stringify({ ...settings, wearRate: +wearRate().toFixed(6),
+      dirtCurve: "eases to ceiling", touchesToHalfDirt: Math.ceil(Math.LN2 * S.dirtCap / S.dirtRate), touchesTo90Dirt: Math.ceil(Math.LN10 * S.dirtCap / S.dirtRate), touchesToVisibleWear: Math.ceil(0.12 / wearRate()) }, null, 2);
+    const out = document.getElementById("out"); out.hidden = false; out.textContent = txt;
+    navigator.clipboard?.writeText(txt).catch(() => {});
+  });
+
+  // ---------- context loss ----------
+  gl.canvas.addEventListener("webglcontextlost", e => e.preventDefault());
+  gl.canvas.addEventListener("webglcontextrestored", () => location.reload());
+
+  addEventListener("resize", layout);
+  matchMedia(`(resolution: ${devicePixelRatio}dppx)`).addEventListener?.("change", layout);
+  layout(); stats();
+  window.__harness = { surfaces, S, gl };
+})();
+</script>
+</body>
+</html>

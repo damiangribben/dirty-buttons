@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dial Wear Prototype</title>
+<style>
+  :root { --ink: #e8e4da; --muted: #8f8b82; --accent: #e0a040; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #161618; color: var(--ink); font: 13px/1.4 ui-sans-serif, system-ui, sans-serif; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  h1 { font-size: 15px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 18px; color: var(--muted); }
+
+  .panel { display: flex; gap: 56px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 40px 32px; border-radius: 16px;
+    background: repeating-linear-gradient(90deg, #ffffff05 0 1px, transparent 1px 3px), linear-gradient(180deg, #34343a, #26262a);
+    box-shadow: inset 0 1px 0 #ffffff1c, inset 0 -2px 0 #0008, 0 0 0 1px #0009, 0 20px 50px #000a; color: #e9e2cf; }
+  .view { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .view .cap { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; opacity: .75; }
+
+  .surface { position: relative; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .surface > canvas.patina { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; border-radius: inherit; z-index: 0; }
+  .ring { border-radius: 50%; display: grid; place-items: center; }
+  .knob { position: relative; z-index: 1; border-radius: 50%; cursor: ns-resize;
+    background: radial-gradient(circle at 50% 50%, #6c6c70 0 34%, #3a3a3d 35% 37%, transparent 38%), repeating-conic-gradient(#1a1a1c 0 4deg, #2e2e31 4deg 8deg);
+    box-shadow: 0 6px 14px #000c, inset 0 1px 0 #ffffff2a, 0 0 0 2px #0a0a0a; }
+
+  aside { background: #2a2b2e; border-radius: 12px; padding: 16px; align-self: start; }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 16px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .opt { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin-bottom: 10px; cursor: pointer; }
+  .opt input { accent-color: var(--accent); margin-top: 3px; }
+  .opt small { grid-column: 2; color: var(--muted); }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  button.b { background: #3a3b40; color: var(--ink); border: 1px solid #4a4b50; border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button.b:hover { background: #45464b; }
+  .stats { font-variant-numeric: tabular-nums; color: var(--muted); display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; }
+  .stats b { color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>How should the rotary dial wear?</h1>
+    <p class="sub">Grab and drag up/down to turn (or scroll). Both dials share one patina — the big one is for looking closely, the small one is panel size. Turn behaviours on and off, then simulate months of use.</p>
+    <div class="panel">
+      <div class="view"><div class="surface ring" id="ring-big"><div class="surface knob" id="knob-big"></div></div><div class="cap">Close-up</div></div>
+      <div class="view"><div class="surface ring" id="ring-small"><div class="surface knob" id="knob-small"></div></div><div class="cap">Tone · actual size</div></div>
+    </div>
+  </section>
+
+  <aside>
+    <h2>Behaviours</h2>
+    <label class="opt"><input type="checkbox" id="b-grip" checked><span>Grip grime</span><small>Each grab leaves dirt on the knurled rim where fingers land, in knob space — so it rotates with the knob.</small></label>
+    <label class="opt"><input type="checkbox" id="b-pinch" checked><span>Pinch grip</span><small>A thumb lands opposite the finger: every grab marks two points 180° apart.</small></label>
+    <label class="opt"><input type="checkbox" id="b-travel" checked><span>Wear by amount turned</span><small>While turning, the gripped spots gather dirt and polish per 30° turned, not just per grab.</small></label>
+    <label class="opt"><input type="checkbox" id="b-index"><span>Index mark rubs off</span><small>Turning also wears the white pointer line, as if the thumb pushes on it.</small></label>
+    <label class="opt"><input type="checkbox" id="b-ring" checked><span>Panel around the knob</span><small>Fingertips smudge the panel just outside the rim (panel space, doesn't rotate). The scale tick where the dial is left gets a wear touch.</small></label>
+
+    <h2>Simulate</h2>
+    <div class="row"><button class="b" data-sim="20">+20 grabs</button><button class="b" data-sim="200">+200</button><button class="b" data-sim="1000">+1000</button><button class="b" id="reset">Reset</button></div>
+    <div class="stats">
+      <span>Grabs</span><b id="s-grabs">0</b>
+      <span>Degrees turned</span><b id="s-deg">0°</b>
+    </div>
+    <p class="sub" style="margin-top:10px">Simulated hand: grabs from roughly 10 o'clock in panel space, and mostly leaves the dial around 3 or 7 on the scale.</p>
+  </aside>
+</main>
+
+<script>
+(() => {
+  // Rates from "What dirt and wear rates feel right?"
+  const R = { dirtRate: 0.025, dirtCeiling: 0.85, wearRate: 0.025 / 40, radius: 0.22 };
+  const MAT = {
+    knob: { print: "#f2ecda", dirt: "#9a8a6c", sheen: [1, 1, 1, .25] },
+    ring: { print: "#e9e2cf", dirt: "#9a8a6c", sheen: [1, 1, 1, .12] },
+  };
+  const KEY = "worn-ui:dial-wear";
+  const store = {
+    load() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch { return null; } },
+    save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} },
+  };
+  const B = id => document.getElementById("b-" + id).checked;
+
+  // Ring scale: 11 ticks over -135..135°, as fractions of ring size.
+  const TICK_R0 = 0.36, TICK_R1 = 0.41, TICK_R1_BIG = 0.43, NUM_R = 0.47, KNOB_FRAC = 0.6;
+  const tickAngle = i => (-135 + 27 * i - 90) * Math.PI / 180;
+
+  const PRINT = {
+    knob(c, w, h) { c.fillRect(w / 2 - w * 0.025, h * 0.06, w * 0.05, h * 0.3); },
+    ring(c, w, h) {
+      c.lineCap = "round"; c.textAlign = "center"; c.textBaseline = "middle";
+      for (let i = 0; i <= 10; i++) {
+        const a = tickAngle(i), big = i % 5 === 0, x = Math.cos(a), y = Math.sin(a);
+        c.lineWidth = w * (big ? 0.013 : 0.009);
+        c.beginPath(); c.moveTo(w / 2 + x * w * TICK_R0, h / 2 + y * h * TICK_R0);
+        c.lineTo(w / 2 + x * w * (big ? TICK_R1_BIG : TICK_R1), h / 2 + y * h * (big ? TICK_R1_BIG : TICK_R1)); c.stroke();
+        if (big) { c.font = `700 ${w * 0.06}px "Futura", "Avenir Next", sans-serif`; c.fillText(String(i), w / 2 + x * w * NUM_R, h / 2 + y * h * NUM_R); }
+      }
+    },
+  };
+
+  // ---------- surfaces: two views share each map ----------
+  const maps = { knob: new Float32Array(64 * 64 * 2), ring: new Float32Array(96 * 96 * 2) };
+  const res = { knob: 64, ring: 96 };
+  const views = [["big", 300], ["small", 150]].map(([name, size]) => {
+    const ringEl = document.getElementById("ring-" + name), knobEl = document.getElementById("knob-" + name);
+    ringEl.style.width = ringEl.style.height = size + "px";
+    knobEl.style.width = knobEl.style.height = size * KNOB_FRAC + "px";
+    const mk = (el, kind) => {
+      const canvas = document.createElement("canvas"); canvas.className = "patina"; el.prepend(canvas);
+      return { el, canvas, ctx: canvas.getContext("2d"), kind, map: maps[kind], mw: res[kind], mh: res[kind] };
+    };
+    return { name, size, ring: mk(ringEl, "ring"), knob: mk(knobEl, "knob") };
+  });
+  const surfaces = views.flatMap(v => [v.ring, v.knob]);
+
+  const state = { angle: -30, grabs: 0, deg: 0 };
+  const saved = store.load();
+  if (saved) {
+    Object.assign(state, saved.state || {});
+    for (const k of ["knob", "ring"]) {
+      try { const bin = atob(saved.maps[k]), m = maps[k];
+        if (bin.length / 2 === m.length) for (let i = 0; i < m.length; i++) m[i] = (bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)) / 65535; } catch {}
+    }
+  }
+
+  // ---------- GL (same shader as the style comparison) ----------
+  const gl = document.createElement("canvas").getContext("webgl2", { premultipliedAlpha: true, preserveDrawingBuffer: true });
+  if (!gl) { document.querySelector(".sub").textContent = "WebGL2 unavailable."; return; }
+  const VS = `#version 300 es
+  in vec2 p; out vec2 uv;
+  void main() { uv = vec2((p.x + 1.0) * 0.5, (1.0 - p.y) * 0.5); gl_Position = vec4(p, 0.0, 1.0); }`;
+  const FS = `#version 300 es
+  precision highp float;
+  in vec2 uv; out vec4 o;
+  uniform sampler2D uMap, uPrint;
+  uniform vec2 uSize; uniform vec3 uPrintColor, uDirtColor; uniform vec4 uSheen; uniform float uSeed;
+  float h(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float vn(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h(i), h(i + vec2(1,0)), u.x), mix(h(i + vec2(0,1)), h(i + vec2(1,1)), u.x), u.y); }
+  float fbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vn(p); p *= 2.03; a *= 0.5; } return s; }
+  void main() {
+    vec2 px = uv * uSize + uSeed * 37.0;
+    vec2 m = texture(uMap, uv).rg; float dirt = m.r, wear = m.g;
+    float printA = texture(uPrint, uv).a;
+    float erodeN = fbm(px / 3.0) * 0.7 + vn(px * 0.9) * 0.3;
+    float keep = smoothstep(wear * 1.15 - 0.04, wear * 1.15 + 0.04, erodeN * 0.92 + 0.06);
+    float pa = printA * keep * (1.0 - wear * 0.35) * 0.95;
+    vec4 col = vec4(uPrintColor * pa, pa);
+    float sheen = wear * uSheen.a * (0.6 + 0.4 * fbm(px / 6.0));
+    col = vec4(uSheen.rgb * sheen, sheen) + col * (1.0 - sheen);
+    float blot = fbm(px / 9.0), grain = vn(px * 1.3);
+    float da = clamp(smoothstep(0.0, 1.0, dirt * (0.55 + 0.9 * blot)) * (0.78 + 0.22 * grain), 0.0, 0.92);
+    vec3 dc = uDirtColor * (0.8 + 0.4 * grain) * (1.0 - 0.25 * smoothstep(0.5, 1.0, dirt));
+    o = vec4(dc * da, da) + col * (1.0 - da);
+  }`;
+  const sh = (t, src) => { const x = gl.createShader(t); gl.shaderSource(x, src); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const ploc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(ploc); gl.vertexAttribPointer(ploc, 2, gl.FLOAT, false, 0, 0);
+  const U = {}; for (const n of ["uMap", "uPrint", "uSize", "uPrintColor", "uDirtColor", "uSheen", "uSeed"]) U[n] = gl.getUniformLocation(prog, n);
+  gl.uniform1i(U.uMap, 0); gl.uniform1i(U.uPrint, 1);
+  const newTex = () => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    return t; };
+  const rgb = hex => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+
+  function layout() {
+    const dpr = devicePixelRatio || 1; let mw = 1, mh = 1;
+    surfaces.forEach((s, i) => {
+      s.cssW = s.el.offsetWidth; s.cssH = s.el.offsetHeight;
+      s.pw = Math.round(s.cssW * dpr); s.ph = Math.round(s.cssH * dpr);
+      s.canvas.width = s.pw; s.canvas.height = s.ph; mw = Math.max(mw, s.pw); mh = Math.max(mh, s.ph);
+      s.mapTex ??= newTex(); gl.bindTexture(gl.TEXTURE_2D, s.mapTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, s.mw, s.mh, 0, gl.RG, gl.FLOAT, s.map);
+      const pc = document.createElement("canvas"); pc.width = s.pw; pc.height = s.ph;
+      const c = pc.getContext("2d"); c.fillStyle = c.strokeStyle = "#fff"; PRINT[s.kind](c, s.pw, s.ph);
+      s.printTex ??= newTex(); gl.bindTexture(gl.TEXTURE_2D, s.printTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pc);
+    });
+    gl.canvas.width = mw; gl.canvas.height = mh;
+    surfaces.forEach(render);
+  }
+  function render(s) {
+    const m = MAT[s.kind];
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.mapTex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.mw, s.mh, gl.RG, gl.FLOAT, s.map);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, s.printTex);
+    // grain scales with the view so both sizes show the same material
+    gl.uniform2f(U.uSize, s.cssW * 150 / s.el.closest(".ring").offsetWidth, s.cssH * 150 / s.el.closest(".ring").offsetWidth);
+    gl.uniform1f(U.uSeed, s.kind === "knob" ? 1 : 2);
+    gl.uniform3f(U.uPrintColor, ...rgb(m.print)); gl.uniform3f(U.uDirtColor, ...rgb(m.dirt)); gl.uniform4f(U.uSheen, ...m.sheen);
+    gl.viewport(0, 0, s.pw, s.ph); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    s.ctx.clearRect(0, 0, s.pw, s.ph);
+    s.ctx.drawImage(gl.canvas, 0, gl.canvas.height - s.ph, s.pw, s.ph, 0, 0, s.pw, s.ph);
+  }
+
+  // ---------- accumulation (in map UV; radius as a fraction of the map) ----------
+  function splat(kind, ux, uy, rFrac, dm, wm) {
+    const map = maps[kind], n = res[kind];
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const dx = (x + 0.5) / n - ux, dy = (y + 0.5) / n - uy, d2 = (dx * dx + dy * dy) / (rFrac * rFrac);
+      if (d2 > 4) continue;
+      const f = Math.exp(-d2 * 1.6), i = (y * n + x) * 2;
+      map[i] = Math.min(R.dirtCeiling, map[i] + R.dirtRate * f * dm * (1 - map[i] / R.dirtCeiling));
+      map[i + 1] = Math.min(1, map[i + 1] + R.wearRate * f * wm);
+    }
+    dirtyKinds.add(kind);
+  }
+  // Contact points are kept in panel space as an angle φ (0 = right, clockwise) and radius ρ (fraction of knob radius).
+  const knobUV = (phi, rho) => { const a = phi - state.angle * Math.PI / 180; return [0.5 + 0.5 * rho * Math.cos(a), 0.5 + 0.5 * rho * Math.sin(a)]; };
+  const ringUV = (phi, rho) => [0.5 + 0.5 * KNOB_FRAC * rho * Math.cos(phi), 0.5 + 0.5 * KNOB_FRAC * rho * Math.sin(phi)];
+  const contacts = (phi, rho) => B("pinch") ? [[phi, rho], [phi + Math.PI, Math.max(rho, 0.8)]] : [[phi, rho]];
+
+  function grab(phi, rho) {
+    state.grabs++;
+    for (const [p, r] of contacts(phi, rho)) {
+      if (B("grip")) splat("knob", ...knobUV(p, r), 0.16, 1, 1);
+      if (B("ring")) splat("ring", ...ringUV(p, 1.18), 0.06, 0.6, 0);
+    }
+  }
+  // Fingers stay on the knob while it turns, so contact angle moves with it.
+  function turn(hold, deltaDeg) {
+    const next = Math.max(-135, Math.min(135, state.angle + deltaDeg)), d = next - state.angle;
+    if (!d) return;
+    const amt = Math.abs(d) / 30;
+    for (const c of hold.contacts) c[0] += d * Math.PI / 180;
+    state.angle = next; state.deg += Math.abs(d);
+    if (B("travel")) for (const [p, r] of hold.contacts) splat("knob", ...knobUV(p, r), 0.16, amt, amt);
+    if (B("index")) for (const t of [0.1, 0.2, 0.3]) splat("knob", 0.5, t, 0.05, amt * 0.2, amt * 2);
+  }
+  function release() {
+    if (!B("ring")) return;
+    const i = Math.round((state.angle + 135) / 27), a = tickAngle(i);
+    splat("ring", 0.5 + Math.cos(a) * (TICK_R0 + TICK_R1) / 2, 0.5 + Math.sin(a) * (TICK_R0 + TICK_R1) / 2, 0.035, 0.2, 1);
+  }
+
+  const dirtyKinds = new Set(); let raf = 0;
+  function flush() {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      for (const v of views) v.knob.el.style.transform = `rotate(${state.angle}deg)`;
+      surfaces.filter(s => dirtyKinds.has(s.kind)).forEach(render); dirtyKinds.clear();
+      document.getElementById("s-grabs").textContent = state.grabs.toLocaleString();
+      document.getElementById("s-deg").textContent = Math.round(state.deg).toLocaleString() + "°";
+      scheduleSave();
+    });
+  }
+
+  // ---------- pointer ----------
+  for (const v of views) {
+    const el = v.knob.el; let hold = null;
+    const polar = e => { const r = el.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      return [Math.atan2(dy, dx), Math.min(1, Math.hypot(dx, dy) / (el.offsetWidth / 2))]; };
+    el.addEventListener("pointerdown", e => {
+      const [phi, rho] = polar(e); grab(phi, rho);
+      hold = { y: e.clientY, contacts: contacts(phi, rho).map(c => [...c]) };
+      el.setPointerCapture(e.pointerId); flush();
+    });
+    el.addEventListener("pointermove", e => { if (!hold) return; turn(hold, (hold.y - e.clientY) * 1.5); hold.y = e.clientY; flush(); });
+    el.addEventListener("pointerup", () => { if (hold) { release(); hold = null; flush(); } });
+    let wheelHold = null, wheelTimer = 0;
+    el.addEventListener("wheel", e => {
+      e.preventDefault();
+      if (!wheelHold) { grab(-Math.PI * 0.75, 0.9); wheelHold = { contacts: contacts(-Math.PI * 0.75, 0.9).map(c => [...c]) }; }
+      turn(wheelHold, -e.deltaY * 0.3); flush();
+      clearTimeout(wheelTimer); wheelTimer = setTimeout(() => { release(); wheelHold = null; flush(); }, 250);
+    }, { passive: false });
+  }
+
+  // ---------- simulated hand ----------
+  const g = () => { let a = 0; for (let i = 0; i < 6; i++) a += Math.random(); return (a - 3) / 1.22; };
+  const FAV = [(3 / 10) * 270 - 135, (7 / 10) * 270 - 135];
+  document.querySelectorAll("[data-sim]").forEach(b => b.addEventListener("click", () => {
+    for (let k = 0; k < +b.dataset.sim; k++) {
+      const phi = (-150 + g() * 20) * Math.PI / 180, rho = 0.9 + g() * 0.05;
+      grab(phi, rho);
+      const hold = { contacts: contacts(phi, rho).map(c => [...c]) };
+      const target = FAV[Math.random() < 0.6 ? 0 : 1] + g() * 15;
+      // turn in a few wrist-sized steps
+      let left = target - state.angle;
+      while (Math.abs(left) > 0.5) { const step = Math.sign(left) * Math.min(Math.abs(left), 60); turn(hold, step); left -= step; }
+      release();
+    }
+    flush();
+  }));
+  document.getElementById("reset").addEventListener("click", () => { maps.knob.fill(0); maps.ring.fill(0); state.grabs = 0; state.deg = 0; dirtyKinds.add("knob").add("ring"); flush(); });
+
+  // ---------- persistence ----------
+  let saveTimer = 0;
+  function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 500); }
+  function save() {
+    const out = {};
+    for (const k of ["knob", "ring"]) {
+      const m = maps[k], u16 = new Uint16Array(m.length); for (let i = 0; i < m.length; i++) u16[i] = Math.round(m[i] * 65535);
+      const b = new Uint8Array(u16.buffer); let bin = ""; for (let i = 0; i < b.length; i += 8192) bin += String.fromCharCode(...b.subarray(i, i + 8192));
+      out[k] = btoa(bin);
+    }
+    store.save({ state, maps: out });
+  }
+  addEventListener("pagehide", save);
+  addEventListener("resize", layout);
+  gl.canvas.addEventListener("webglcontextlost", e => e.preventDefault());
+  gl.canvas.addEventListener("webglcontextrestored", () => location.reload());
+
+  for (const v of views) v.knob.el.style.transform = `rotate(${state.angle}deg)`;
+  (document.fonts?.ready || Promise.resolve()).then(() => { layout(); flush(); });
+})();
+</script>
+</body>
+</html>
