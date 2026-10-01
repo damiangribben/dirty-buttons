@@ -81,7 +81,7 @@
   #slide-thumb { position: absolute !important; top: 3px; left: 3px; width: 40px; height: 34px; border-radius: 4px; transition: transform .12s; background: linear-gradient(180deg, #ebe4d2, #c9c0aa); box-shadow: inset 0 1px 0 #fff8, inset 0 -2px 0 #0003, 0 2px 4px #000a; }
   #slide.on #slide-thumb { transform: translateX(42px); }
   #slider { width: 264px; height: 46px; border-radius: 6px; background: linear-gradient(180deg, #2b2b2f, #232327); }
-  #slider::before { content: ""; position: absolute; left: 14px; right: 14px; top: 20px; height: 6px; border-radius: 3px; background: #050505; box-shadow: inset 0 1px 2px #000, 0 1px 0 #ffffff1a; z-index: 1; }
+  #slider::before { content: ""; position: absolute; left: calc(100% * 14 / 264); right: calc(100% * 14 / 264); top: calc(50% - 3px); height: 6px; border-radius: 3px; background: #050505; box-shadow: inset 0 1px 2px #000, 0 1px 0 #ffffff1a; z-index: 1; }
   #slider-thumb { position: absolute !important; top: 4px; width: 26px; height: 38px; border-radius: 4px; transition: left .06s; z-index: 2 !important; background: repeating-linear-gradient(180deg, #d9d9d9 0 2px, #9a9a9a 2px 4px); box-shadow: 0 3px 6px #000c, inset 0 0 0 1px #0005; }
   .dial { position: relative; width: 150px; height: 150px; display: grid; place-items: center; }
   #knob { width: 92px; height: 92px; border-radius: 50%; cursor: ns-resize;
@@ -129,6 +129,26 @@
     .rag-spot { width: 68px; height: 50px; border-radius: 12px; }
     .rag-spot .rag { width: 54px; height: 44px; }
     .dock-hint { display: block; }
+
+    /* controls at 2x where they fit; pads, slider and name field fill the panel width */
+    .col, .col > div, .display { align-self: stretch; width: 100%; }
+    .pads { width: 100%; max-width: 456px; margin-inline: auto; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .pad { width: auto; height: auto; aspect-ratio: 1; border-radius: 14px; }
+    .dial { width: 300px; height: 300px; margin-inline: auto; }
+    #knob { width: 184px; height: 184px; }
+    #slider { width: 100%; max-width: 528px; height: 92px; margin-inline: auto; border-radius: 10px; }
+    #slider::before { height: 8px; top: calc(50% - 4px); border-radius: 4px; }
+    #slider-thumb { top: 8px; width: 40px; height: 76px; border-radius: 6px; }
+    #label { width: 184px; height: 44px; border-radius: 8px; }
+    #field { width: 100%; max-width: 440px; height: 80px; border-radius: 10px; }
+    #field input { font-size: 48px; padding: 0 20px; }
+    #button { width: 280px; height: 120px; border-radius: 20px; margin-inline: auto; }
+    .row { justify-content: center; gap: 32px; }
+    #rocker { width: 100px; height: 160px; border-radius: 12px; }
+    #slide { width: 176px; height: 80px; border-radius: 12px; }
+    #slide-thumb { top: 6px; left: 6px; width: 80px; height: 68px; border-radius: 8px; }
+    #slide.on #slide-thumb { transform: translateX(84px); }
+    #cursor .rag { width: 104px; height: 88px; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -209,6 +229,8 @@
     field:  { print: "#1f2614", dirt: "#3c3a26", sheen: [1, 1, .9, .25] },
     panel:  { print: "#e9e2cf", dirt: "#9a8a6c", sheen: [1, 1, 1, .1] },
   };
+  // Controls are drawn at 2x on phones; halo, travel and cloth sizes follow.
+  const uiK = () => (matchMedia("(max-width: 640px)").matches ? 2 : 1);
   const KEY = "patina7";
   const store = {
     load() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch { return null; } },
@@ -250,7 +272,8 @@
     label(c, w, h) { c.font = font(600, h * 0.5); c.letterSpacing = `${h * 0.08}px`; centreText(c, "KIT NAME", w / 2, h / 2 + 1); },
     field() {},
     panel(c, w, h, s) {
-      const pr = s.el.getBoundingClientRect(), k = w / pr.width;
+      const pr = s.el.getBoundingClientRect();
+      let k = w / pr.width;
       for (const el of s.el.querySelectorAll(".brand, .model, .cap")) {
         const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
         c.font = `${cs.fontWeight} ${parseFloat(cs.fontSize) * k}px ${cs.fontFamily}`;
@@ -263,6 +286,7 @@
       }
       const d = document.getElementById("dial").getBoundingClientRect();
       const cx = (d.left + d.width / 2 - pr.left) * k, cy = (d.top + d.height / 2 - pr.top) * k;
+      k *= d.width / 150; // scale radii is defined for a 150px dial box
       c.lineCap = "round"; c.letterSpacing = "0px"; c.font = font(600, 10 * k);
       for (let i = 0; i <= 10; i++) {
         const a = tickAngle(i), big = i % 5 === 0, x = Math.cos(a), y = Math.sin(a), r1 = big ? SCALE.r1Big : SCALE.r1;
@@ -378,6 +402,7 @@
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pc);
     });
     gl.canvas.width = mw; gl.canvas.height = mh;
+    applySlider();
     surfaces.forEach(render);
   }
   function fitPanelMap() {
@@ -445,8 +470,9 @@
     let dx = tx - cx, dy = ty - cy; if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) dy = 1;
     const len = Math.hypot(dx, dy);
     const edge = s === S.knob ? hw / len : Math.min(hw / Math.max(Math.abs(dx), 1e-6), hh / Math.max(Math.abs(dy), 1e-6));
-    splatPanel(cx + dx * edge + dx / len * HALO.over + gj() * 3, cy + dy * edge + dy / len * HALO.over + gj() * 3,
-      HALO.r, s === S.knob ? HALO.dirtDial : HALO.dirt, HALO.wear);
+    const K = uiK();
+    splatPanel(cx + dx * edge + dx / len * HALO.over * K + gj() * 3 * K, cy + dy * edge + dy / len * HALO.over * K + gj() * 3 * K,
+      HALO.r * K, s === S.knob ? HALO.dirtDial : HALO.dirt, HALO.wear);
   }
 
   const dirty = new Set(); let raf = 0;
@@ -475,17 +501,17 @@
   const applySlide = () => S.slide.el.classList.toggle("on", state.slide);
   function flipSlide(thumbUV) {
     const from = state.slide ? SLIDE_R : SLIDE_L; state.slide = !state.slide; applySlide();
-    travel(S.slide, from, state.slide ? SLIDE_R : SLIDE_L, 0.5, { r: 16, d: 0.25, w: 0.6 });
+    travel(S.slide, from, state.slide ? SLIDE_R : SLIDE_L, 0.5, { r: 16 * uiK(), d: 0.25, w: 0.6 });
     splat(S.slideThumb, ...(thumbUV || [0.5, 0.5]));
   }
   S.slide.el.addEventListener("pointerdown", e => flipSlide(inside(S.slideThumb, e) ? uvOf(S.slideThumb, e) : null));
 
   // slider: nine click stops; the track wears where the thumb travels
   const SL_PAD = 14 / 264, stopU = i => SL_PAD + (1 - 2 * SL_PAD) * i / 8;
-  const applySlider = () => S.sliderThumb.el.style.left = `${stopU(state.stop) * 264 - 13}px`;
+  const applySlider = () => S.sliderThumb.el.style.left = `${stopU(state.stop) * S.slider.el.offsetWidth - S.sliderThumb.el.offsetWidth / 2}px`;
   function moveSlider(to) {
     to = Math.max(0, Math.min(8, to)); if (to === state.stop) return;
-    travel(S.slider, stopU(state.stop), stopU(to), 0.5, { r: 18, d: 0.15, w: 0.5 });
+    travel(S.slider, stopU(state.stop), stopU(to), 0.5, { r: 18 * uiK(), d: 0.15, w: 0.5 });
     state.stop = to; applySlider();
   }
   let sliding = false;
@@ -514,8 +540,8 @@
   }
   function settleDial() {
     const i = Math.round((state.angle + 135) / 27), a = tickAngle(i), d = document.getElementById("dial").getBoundingClientRect();
-    const rm = (SCALE.r0 + SCALE.r1) / 2;
-    splatPanel(d.left + d.width / 2 + Math.cos(a) * rm, d.top + d.height / 2 + Math.sin(a) * rm, 4, 0.2, 1);
+    const ks = d.width / 150, rm = (SCALE.r0 + SCALE.r1) / 2 * ks;
+    splatPanel(d.left + d.width / 2 + Math.cos(a) * rm, d.top + d.height / 2 + Math.sin(a) * rm, 4 * ks, 0.2, 1);
   }
   let turning = null;
   S.knob.el.addEventListener("pointerdown", e => { splat(S.knob, ...knobUVAt(e.clientX, e.clientY)); turning = { y: e.clientY }; S.knob.el.setPointerCapture(e.pointerId); });
@@ -592,7 +618,7 @@
     return [vx * Math.cos(a) - vy * Math.sin(a), vx * Math.sin(a) + vy * Math.cos(a)];
   }
   function scrubSurface(s, px, py, mvx, mvy, dist) {
-    const rb = CLOTH.brush, k = dist / 10;
+    const rb = CLOTH.brush * uiK(), k = dist / 10;
     if (px < -rb || py < -rb || px > s.cssW + rb || py > s.cssH + rb) return;
     const cw = s.cssW / s.mw, ch = s.cssH / s.mh;
     const x0 = Math.max(0, Math.floor((px - rb) / cw)), x1 = Math.min(s.mw - 1, Math.ceil((px + rb) / cw));
@@ -614,7 +640,7 @@
   function scrubTo(x, y) {
     const dx = x - scrub.x, dy = y - scrub.y, dist = Math.hypot(dx, dy);
     if (dist < 0.5) return;
-    const n = Math.ceil(dist / Math.max(2, CLOTH.brush * 0.3));
+    const n = Math.ceil(dist / Math.max(2, CLOTH.brush * uiK() * 0.3));
     for (let k = 1; k <= n; k++) {
       const px = scrub.x + dx * k / n, py = scrub.y + dy * k / n;
       for (const s of surfaces) scrubSurface(s, ...localPt(s, px, py), ...localVec(s, dx / n, dy / n), dist / n);
